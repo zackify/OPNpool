@@ -645,8 +645,15 @@ void
 OpnPool::update_numbers(poolstate_t const * const state)
 {
     OpnPoolNumber * const speed_number = this->numbers_[enum_index(number_id_t::PRIMARY_PUMP_SPEED_SET)];
-    if (speed_number != nullptr && state->pumps[enum_index(datalink_pump_id_t::PRIMARY)].speed.valid) {
-        speed_number->publish_value_if_changed(static_cast<float>(state->pumps[enum_index(datalink_pump_id_t::PRIMARY)].speed.value));
+    if (speed_number == nullptr) {
+        return;
+    }
+
+    auto const & pump = state->pumps[enum_index(datalink_pump_id_t::PRIMARY)];
+    if (pump.set_speed.valid) {
+        speed_number->publish_value_if_changed(static_cast<float>(pump.set_speed.value));
+    } else if (pump.speed.valid) {
+        speed_number->publish_value_if_changed(static_cast<float>(pump.speed.value));
     }
 }
 

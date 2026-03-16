@@ -234,14 +234,22 @@ _update_temps(cJSON * const dbg, network_ctrl_state_bcast_t const * const msg, p
  * verbose logging is enabled, logs the register update to the debug JSON object.
  */
 static void
-_pump_reg_set(cJSON * const dbg, network_pump_reg_set_t const * const msg, datalink_pump_id_t const pump_id)
+_pump_reg_set(cJSON * const dbg, network_pump_reg_set_t const * const msg, datalink_pump_id_t const pump_id,
+              poolstate_pump_t * const pumps)
 {
-    if (!msg) {
+    if (!msg || !pumps) {
         ESP_LOGW(TAG, "null to %s", __func__);
         return;
     }
 
-    // no change to poolstate
+    auto * const pump = &pumps[enum_index(pump_id)];
+
+    if (msg->operation.is_write() && msg->address == network_pump_reg_addr_t::RPM) {
+        pump->set_speed = {
+            .valid = true,
+            .value = msg->value.to_uint16()
+        };
+    }
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_pump_reg_set(dbg, poolstate_rx_log::KEY_REG, pump_id, msg);
@@ -409,6 +417,7 @@ _pump_status(cJSON * const dbg, network_pump_status_resp_t const * const msg, da
             .valid = true,
             .value = msg->state
         },
+        .set_speed = pump->set_speed,
         .power = {
             .valid = true,
             .value = msg->power.to_uint16()
@@ -967,7 +976,7 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
         case network_msg_typ_t::IGNORE:
             break;
         case network_msg_typ_t::PUMP_REG_SET:
-            _pump_reg_set(dbg, &msg->u.a5.pump_reg_set, pump_id);
+            _pump_reg_set(dbg, &msg->u.a5.pump_reg_set, pump_id, new_state->pumps);
             break;
         case network_msg_typ_t::PUMP_REG_RESP:
             _pump_reg_resp(dbg, &msg->u.a5.pump_reg_resp, pump_id);

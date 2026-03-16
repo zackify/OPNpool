@@ -54,7 +54,7 @@ constexpr int                   BAUD_RATE = 9600;
 constexpr uart_word_length_t    DATA_BITS = UART_DATA_8_BITS;
 constexpr uart_parity_t         PARITY    = UART_PARITY_DISABLE;
 constexpr uart_stop_bits_t      STOP_BITS = UART_STOP_BITS_1;
-constexpr uart_hw_flowcontrol_t FLOW_CTRL = UART_HW_FLOWCTRL_DISABLE; 
+constexpr uart_hw_flowcontrol_t FLOW_CTRL = UART_HW_FLOWCTRL_DISABLE;
 constexpr uart_sclk_t           CLOCK_SRC = UART_SCLK_DEFAULT;
 constexpr uint8_t               RX_FLOW_CTRL_THRESH = 122;
 
@@ -212,7 +212,7 @@ rs485_init(rs485_pins_t const * const rs485_pins)
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    ESP_ERROR_CHECK( gpio_config(&io_conf) );
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
     gpio_set_level(_rts_pin, 0);
 
     ESP_LOGI(TAG, "Initializing RS485 on UART%u (RX pin %u, TX pin %u, RTS pin %u) ..",

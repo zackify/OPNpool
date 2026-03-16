@@ -219,6 +219,7 @@ struct poolstate_pump_t {
     poolstate_pump_mode_t  mode;     ///< Operating mode (from pump_status_resp, pump_run_mode).
     poolstate_bool_t       running;  ///< True if pump is running (from pump_status_resp, pump_run).
     poolstate_pump_state_t state;    ///< Pump state (from pump_status_resp).
+    poolstate_uint16_t     set_speed;///< Commanded RPM setpoint (from pump_reg_set writes).
     poolstate_uint16_t     power;    ///< Power consumption in watts (from pump_status_resp).
     poolstate_uint16_t     flow;     ///< Flow rate in GPM (from pump_status_resp).
     poolstate_uint16_t     speed;    ///< Speed in RPM (from pump_status_resp).

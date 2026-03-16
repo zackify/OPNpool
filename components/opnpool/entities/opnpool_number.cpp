@@ -14,6 +14,8 @@
  * @license SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <cmath>
+
 #include <esp_system.h>
 #include <esphome/core/log.h>
 
@@ -45,21 +47,29 @@ void
 OpnPoolNumber::control(float value)
 {
     if (!this->parent_) { ESP_LOGW(TAG, "Parent unknown"); return; }
+    if (!this->parent_->get_ipc()) { ESP_LOGW(TAG, "IPC unavailable"); return; }
 
-    PoolState * const state_class_ptr = parent_->get_opnpool_state();
-    if (!state_class_ptr) { ESP_LOGW(TAG, "Pool state unknown"); return; }
+    float rpm_value = value;
+    float const min_value = this->traits.get_min_value();
+    float const max_value = this->traits.get_max_value();
+    float const step = this->traits.get_step();
 
-    poolstate_t state;
-    state_class_ptr->get(&state);
+    if (!std::isnan(step) && step > 0.0f) {
+        float const base = std::isnan(min_value) ? 0.0f : min_value;
+        rpm_value = base + std::round((rpm_value - base) / step) * step;
+    }
+    if (!std::isnan(min_value) && rpm_value < min_value) {
+        rpm_value = min_value;
+    }
+    if (!std::isnan(max_value) && rpm_value > max_value) {
+        rpm_value = max_value;
+    }
 
-    // Clamp value to valid range (1000-3450 RPM)
-    uint16_t rpm = static_cast<uint16_t>(value);
-    if (rpm < 1000) rpm = 1000;
-    if (rpm > 3450) rpm = 3450;
+    uint16_t const rpm = static_cast<uint16_t>(std::lround(rpm_value));
 
     ESP_LOGI(TAG, "Setting pump speed to %u RPM", rpm);
 
-    network_msg_t msg;
+    network_msg_t msg = {};
     msg.src = datalink_addr_t::remote();
     msg.dst = datalink_addr_t::pump(datalink_pump_id_t::PRIMARY);
     msg.typ = network_msg_typ_t::PUMP_REG_SET;
