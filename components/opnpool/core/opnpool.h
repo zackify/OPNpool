@@ -45,6 +45,7 @@ class OpnPoolSwitch;
 class OpnPoolSensor;
 class OpnPoolBinarySensor;
 class OpnPoolTextSensor;
+class OpnPoolNumber;
 
 /// @brief RS-485 GPIO pin configuration.
 struct rs485_pins_t {
@@ -115,6 +116,9 @@ class OpnPool : public Component {
     void set_controller_type_text_sensor(OpnPoolTextSensor * const ts);
     void set_interface_firmware_text_sensor(OpnPoolTextSensor * const ts);
 
+    // ========== Number Setters ==========
+    void set_primary_pump_speed_set_number(OpnPoolNumber * const n);
+
 #ifdef USE_MATTER
     // ========== Matter Configuration ==========
     void set_matter_config(uint16_t discriminator, uint32_t passcode);
@@ -135,6 +139,7 @@ class OpnPool : public Component {
     void update_text_sensors(poolstate_t const * const state);
     void update_analog_sensors(poolstate_t const * const state);
     void update_binary_sensors(poolstate_t const * const state);
+    void update_numbers(poolstate_t const * const state);
     void update_all(poolstate_t const * const state);
 
     // ========== Accessors ==========
@@ -154,6 +159,7 @@ class OpnPool : public Component {
     OpnPoolSensor * sensors_[enum_count<sensor_id_t>()]{nullptr};                 ///< Sensor entity pointers.
     OpnPoolBinarySensor * binary_sensors_[enum_count<binary_sensor_id_t>()]{nullptr}; ///< Binary sensor pointers.
     OpnPoolTextSensor * text_sensors_[enum_count<text_sensor_id_t>()]{nullptr};   ///< Text sensor pointers.
+    OpnPoolNumber * numbers_[enum_count<number_id_t>()]{nullptr};                 ///< Number entity pointers.
 
 #ifdef USE_MATTER
     // ========== Matter Integration ==========
