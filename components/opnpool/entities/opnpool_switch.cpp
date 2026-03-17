@@ -42,6 +42,13 @@ namespace opnpool {
 
 constexpr char TAG[] = "opnpool_switch";
 
+void
+OpnPoolSwitch::set_circuit_plus_1_override(uint8_t const circuit_plus_1)
+{
+    circuit_plus_1_override_ = circuit_plus_1;
+    set_switch_circuit_plus_1_override(id_, circuit_plus_1);
+}
+
 /**
  * @brief Dump the configuration and last known state of the switch entity.
  *
@@ -58,6 +65,9 @@ OpnPoolSwitch::dump_config()
 
     LOG_SWITCH("  ", "Switch", this);
     ESP_LOGCONFIG(TAG, "    Circuit: %s", enum_str(circuit));
+    if (circuit_plus_1_override_ != 0) {
+        ESP_LOGCONFIG(TAG, "    Circuit+1 override: %u", circuit_plus_1_override_);
+    }
     ESP_LOGCONFIG(TAG, "    Last state: %s", last_.valid ? (last_.value ? "ON" : "OFF") : "Unknown");
 }
 
@@ -92,6 +102,9 @@ OpnPoolSwitch::write_state(bool value)
 
     network_pool_circuit_t const circuit = circuit_;
     uint8_t const circuit_idx = enum_index(circuit);
+    uint8_t const circuit_plus_1 = circuit_plus_1_override_ != 0
+                                 ? circuit_plus_1_override_
+                                 : static_cast<uint8_t>(circuit_idx + uint8_t(1));
 
     network_msg_t msg;
     msg.src = datalink_addr_t::easytouch_controller();
@@ -99,7 +112,7 @@ OpnPoolSwitch::write_state(bool value)
     msg.typ = network_msg_typ_t::CTRL_CIRCUIT_SET;
     msg.u.a5 = {
         .ctrl_circuit_set = {
-            .circuit_plus_1 = static_cast<uint8_t>(circuit_idx + uint8_t(1)),
+            .circuit_plus_1 = circuit_plus_1,
             .value = static_cast<uint8_t>(value ? 1 : 0)          
         }
     };

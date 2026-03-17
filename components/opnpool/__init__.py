@@ -59,6 +59,7 @@ CONF_RS485_RX_PIN  = "rx_pin"
 CONF_RS485_TX_PIN  = "tx_pin"
 CONF_RS485_RTS_PIN = "rts_pin"
 CONF_RS485_A5_VERSION = "a5_version"
+CONF_CIRCUIT_PLUS_1 = "circuit_plus_1"
 
 # Matter over Thread configuration
 CONF_MATTER               = "matter"
@@ -144,7 +145,8 @@ CONFIG_SCHEMA = cv.Schema({
     },
     **{
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): switch.switch_schema(OpnPoolSwitch).extend({
-            cv.GenerateID(): cv.declare_id(OpnPoolSwitch)
+            cv.GenerateID(): cv.declare_id(OpnPoolSwitch),
+            cv.Optional(CONF_CIRCUIT_PLUS_1): cv.int_range(min=1, max=16),
         }) for key in CONF_SWITCHES
     },
     **{
@@ -296,6 +298,8 @@ async def to_code(config):
             entity_cfg[CONF_ID] = cg.new_id()
         switch_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, id)
         await switch.register_switch(switch_entity, entity_cfg)
+        if CONF_CIRCUIT_PLUS_1 in entity_cfg:
+            cg.add(switch_entity.set_circuit_plus_1_override(entity_cfg[CONF_CIRCUIT_PLUS_1]))
         cg.add(getattr(var, f"set_{switch_key}_switch")(switch_entity))
 
     # register analog sensors (constructor injection)

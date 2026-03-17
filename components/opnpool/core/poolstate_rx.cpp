@@ -98,19 +98,32 @@ _update_circuits(cJSON * const dbg, network_ctrl_state_bcast_t const * const msg
 {
     constexpr uint8_t pool_idx = enum_index(network_pool_circuit_t::POOL);
     constexpr uint8_t spa_idx  = enum_index(network_pool_circuit_t::SPA);
-
-        // update circuits[].active
     uint16_t const bitmask_active_circuits = msg->active.to_uint16();
-    _update_circuit_active_from_bits(circuits, bitmask_active_circuits, enum_count<network_pool_circuit_t>());
+    uint8_t const bitmask_delay_circuits = msg->delay;
+
+        // update circuits[].active and circuits[].delay using configured circuit+1 mapping
+    for (auto switch_id : magic_enum::enum_values<switch_id_t>()) {
+        network_pool_circuit_t const circuit = switch_id_to_network_circuit(switch_id);
+        uint8_t const circuit_idx = enum_index(circuit);
+        uint8_t const circuit_plus_1 = switch_id_to_circuit_plus_1(switch_id);
+        uint16_t const mask = (circuit_plus_1 >= 1 && circuit_plus_1 <= 16)
+                            ? static_cast<uint16_t>(1U << (circuit_plus_1 - 1))
+                            : 0;
+
+        circuits[circuit_idx].active = {
+            .valid = true,
+            .value = mask != 0 && (bitmask_active_circuits & mask) != 0
+        };
+        circuits[circuit_idx].delay = {
+            .valid = true,
+            .value = mask != 0 && (static_cast<uint16_t>(bitmask_delay_circuits) & mask) != 0
+        };
+    }
 
         // if both SPA and POOL bits are set, only SPA runs
     if (circuits[spa_idx].active.value) {
         circuits[pool_idx].active.value = false;
     }
-
-        // update circuits[].delay
-    uint8_t const bitmask_delay_circuits = msg->delay;
-    _update_circuit_delay_from_bits(circuits, bitmask_delay_circuits, enum_count<network_pool_circuit_t>());
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_circuits(dbg, poolstate_rx_log::KEY_CIRCUITS, circuits);

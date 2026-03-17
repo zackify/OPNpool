@@ -99,6 +99,22 @@ enum class text_sensor_id_t : uint8_t {
  */
 [[nodiscard]] network_pool_circuit_t switch_id_to_network_circuit(switch_id_t const id);
 
+/**
+ * @brief Returns the configured Pentair circuit number (1-based) for a switch entity.
+ *
+ * @param[in] id The switch entity ID.
+ * @return       The configured circuit_plus_1 value.
+ */
+[[nodiscard]] uint8_t switch_id_to_circuit_plus_1(switch_id_t const id);
+
+/**
+ * @brief Overrides the Pentair circuit number (1-based) for a switch entity.
+ *
+ * @param[in] id             The switch entity ID.
+ * @param[in] circuit_plus_1 The 1-based Pentair circuit number.
+ */
+void set_switch_circuit_plus_1_override(switch_id_t const id, uint8_t const circuit_plus_1);
+
 } // namespace opnpool
 } // namespace esphome
 

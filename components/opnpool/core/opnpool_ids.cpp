@@ -26,6 +26,10 @@
 namespace esphome {
 namespace opnpool {
 
+static uint8_t g_switch_circuit_plus_1_overrides[enum_count<switch_id_t>()] = {
+    1, 2, 3, 4, 5, 6, 7, 8, 9
+};
+
 /**
  * @brief Convert climate_id_t to poolstate_thermo_typ_t.
  *
@@ -71,6 +75,18 @@ switch_id_to_network_circuit(switch_id_t const id)
     static_assert(enum_index(switch_id_t::FEATURE4) == enum_index(network_pool_circuit_t::FEATURE4), "switch_id_t and network_pool_circuit_t must have matching elements");
 
     return static_cast<network_pool_circuit_t>(static_cast<uint8_t>(id));
+}
+
+[[nodiscard]] uint8_t
+switch_id_to_circuit_plus_1(switch_id_t const id)
+{
+    return g_switch_circuit_plus_1_overrides[enum_index(id)];
+}
+
+void
+set_switch_circuit_plus_1_override(switch_id_t const id, uint8_t const circuit_plus_1)
+{
+    g_switch_circuit_plus_1_overrides[enum_index(id)] = circuit_plus_1;
 }
 
 } // namespace opnpool
