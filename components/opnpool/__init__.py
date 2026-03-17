@@ -39,7 +39,7 @@ from esphome.const import (
     CONF_ID,
     CONF_NAME,
     CONF_DEVICE_CLASS, DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_POWER, DEVICE_CLASS_VOLUME_FLOW_RATE, DEVICE_CLASS_EMPTY,
-    CONF_UNIT_OF_MEASUREMENT, UNIT_CELSIUS, UNIT_WATT, UNIT_EMPTY, UNIT_REVOLUTIONS_PER_MINUTE, UNIT_PARTS_PER_MILLION, UNIT_PERCENT,
+    CONF_UNIT_OF_MEASUREMENT, UNIT_WATT, UNIT_EMPTY, UNIT_REVOLUTIONS_PER_MINUTE, UNIT_PARTS_PER_MILLION, UNIT_PERCENT,
     CONF_STATE_CLASS, STATE_CLASS_MEASUREMENT,
     CONF_MIN_VALUE, CONF_MAX_VALUE, CONF_STEP
 )
@@ -61,6 +61,7 @@ CONF_RS485         = "rs485"
 CONF_RS485_RX_PIN  = "rx_pin"
 CONF_RS485_TX_PIN  = "tx_pin"
 CONF_RS485_RTS_PIN = "rts_pin"
+CONF_RS485_A5_VERSION = "a5_version"
 
 # Matter over Thread configuration
 CONF_MATTER               = "matter"
@@ -94,8 +95,8 @@ CONF_SWITCHES = [  # used to overwrite switch_id_t enum in opnpool.h
     "feature4"
 ]
 CONF_ANALOG_SENSORS = { # keys are used to overwrite sensor_id_t enum in opnpool.h
-    "air_temperature":    {"unit": UNIT_CELSIUS, CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
-    "water_temperature":  {"unit": UNIT_CELSIUS, CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "air_temperature":    {"unit": "°F", CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "water_temperature":  {"unit": "°F", CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_power": {"unit": UNIT_WATT, CONF_DEVICE_CLASS: DEVICE_CLASS_POWER, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_flow":  {"unit": "gal/min", CONF_DEVICE_CLASS: DEVICE_CLASS_VOLUME_FLOW_RATE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_speed": {"unit": UNIT_REVOLUTIONS_PER_MINUTE, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
@@ -131,7 +132,8 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_RS485, default={}): cv.Schema({
         cv.Optional(CONF_RS485_TX_PIN, default=21): cv.int_,
         cv.Optional(CONF_RS485_RX_PIN, default=22): cv.int_,
-        cv.Optional(CONF_RS485_RTS_PIN, default=23): cv.int_,
+        cv.Optional(CONF_RS485_RTS_PIN, default=23): cv.int_range(min=-1, max=48),
+        cv.Optional(CONF_RS485_A5_VERSION, default=0x07): cv.int_range(min=0, max=255),
     }),
     # Matter over Thread settings (optional, disabled by default)
     # Requires ESP32-C6 or ESP32-H2 with Thread radio support
@@ -266,7 +268,12 @@ async def to_code(config):
     
     # RS485 configuration
     rs485_config = config[CONF_RS485]
-    cg.add(var.set_rs485_pins(rs485_config[CONF_RS485_RX_PIN], rs485_config[CONF_RS485_TX_PIN], rs485_config[CONF_RS485_RTS_PIN]))
+    cg.add(var.set_rs485_pins(
+        rs485_config[CONF_RS485_RX_PIN],
+        rs485_config[CONF_RS485_TX_PIN],
+        rs485_config[CONF_RS485_RTS_PIN],
+        rs485_config[CONF_RS485_A5_VERSION],
+    ))
 
     # matter over Thread configuration
     matter_config = config[CONF_MATTER]

@@ -34,6 +34,7 @@ namespace esphome {
 namespace opnpool {
 
 constexpr char TAG[] = "opnpool_number";
+constexpr uint8_t PUMP_RPM_REG_ADDR = 0x02;
 
 void
 OpnPoolNumber::dump_config()
@@ -48,6 +49,18 @@ OpnPoolNumber::control(float value)
 {
     if (!this->parent_) { ESP_LOGW(TAG, "Parent unknown"); return; }
     if (!this->parent_->get_ipc()) { ESP_LOGW(TAG, "IPC unavailable"); return; }
+
+    PoolState * const state_class_ptr = parent_->get_opnpool_state();
+    if (!state_class_ptr) { ESP_LOGW(TAG, "Pool state unknown"); return; }
+
+    poolstate_t state;
+    state_class_ptr->get(&state);
+
+    datalink_addr_t const controller_addr = state.system.addr.value;
+    if (!controller_addr.is_controller()) {
+        ESP_LOGW(TAG, "Controller address still unknown, cannot send pump register write");
+        return;
+    }
 
     float rpm_value = value;
     float const min_value = this->traits.get_min_value();
@@ -70,12 +83,12 @@ OpnPoolNumber::control(float value)
     ESP_LOGI(TAG, "Setting pump speed to %u RPM", rpm);
 
     network_msg_t msg = {};
-    msg.src = datalink_addr_t::remote();
+    msg.src = controller_addr;
     msg.dst = datalink_addr_t::pump(datalink_pump_id_t::PRIMARY);
     msg.typ = network_msg_typ_t::PUMP_REG_SET;
     msg.u.a5 = {
         .pump_reg_set = {
-            .address = network_pump_reg_addr_t::RPM,
+            .address = static_cast<network_pump_reg_addr_t>(PUMP_RPM_REG_ADDR),
             .operation = {network_pump_reg_operation_t::WRITE},
             .value = {
                 .high = static_cast<uint8_t>((rpm >> 8) & 0xFF),
@@ -84,7 +97,8 @@ OpnPoolNumber::control(float value)
         }
     };
 
-    ESP_LOGVV(TAG, "Sending PUMP_REG_SET command: addr=0x%02X, op=0x%02X, value=%u",
+    ESP_LOGV(TAG, "Sending PUMP_REG_SET command: src=0x%02X addr=0x%02X, op=0x%02X, value=%u",
+              msg.src.addr,
               static_cast<uint8_t>(msg.u.a5.pump_reg_set.address),
               msg.u.a5.pump_reg_set.operation.raw,
               msg.u.a5.pump_reg_set.value.to_uint16());

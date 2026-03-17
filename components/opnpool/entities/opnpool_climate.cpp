@@ -268,7 +268,7 @@ OpnPoolClimate::control(const climate::ClimateCall &call)
     if (thermos_changed) {
 
         network_msg_t msg = {};
-        msg.src = datalink_addr_t::remote();
+        msg.src = datalink_addr_t::easytouch_controller();
         msg.dst = controller_addr;
         msg.typ = network_msg_typ_t::CTRL_HEAT_SET;
         msg.u.a5.ctrl_heat_set.pool_set_point = thermos_new[thermo_pool_idx].set_point_in_f.value;
@@ -276,7 +276,8 @@ OpnPoolClimate::control(const climate::ClimateCall &call)
         msg.u.a5.ctrl_heat_set.heat_src.set_pool(thermos_new[thermo_pool_idx].heat_src.value);
         msg.u.a5.ctrl_heat_set.heat_src.set_spa(thermos_new[thermo_spa_idx].heat_src.value);
 
-        ESP_LOGV(TAG, "Sending HEAT_SET: pool=%u°F, spa=%u°F, heat_src=%u,%u", 
+        ESP_LOGV(TAG, "Sending HEAT_SET: src=0x%02X pool=%u°F, spa=%u°F, heat_src=%u,%u", 
+                  msg.src.addr,
                   msg.u.a5.ctrl_heat_set.pool_set_point, 
                   msg.u.a5.ctrl_heat_set.spa_set_point,
                   (uint8_t)msg.u.a5.ctrl_heat_set.heat_src.get_pool(),

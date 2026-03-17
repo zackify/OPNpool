@@ -432,7 +432,12 @@ OpnPool::dump_config() {
     ESP_LOGCONFIG(TAG, "OpnPool:");
     ESP_LOGCONFIG(TAG, "  RS485 rx pin: %u", this->ipc_->config.rs485_pins.rx_pin);
     ESP_LOGCONFIG(TAG, "  RS485 tx pin: %u", this->ipc_->config.rs485_pins.tx_pin);
-    ESP_LOGCONFIG(TAG, "  RS485 rts pin: %u", this->ipc_->config.rs485_pins.rts_pin);
+    if (this->ipc_->config.rs485_pins.rts_pin < 0) {
+        ESP_LOGCONFIG(TAG, "  RS485 rts pin: disabled");
+    } else {
+        ESP_LOGCONFIG(TAG, "  RS485 rts pin: %d", this->ipc_->config.rs485_pins.rts_pin);
+    }
+    ESP_LOGCONFIG(TAG, "  RS485 A5 version: 0x%02X", this->ipc_->config.rs485_pins.a5_version);
 
     for (auto idx : magic_enum::enum_values<climate_id_t>()) {
         _dump_if(this->climates_[enum_index(idx)]);
@@ -669,11 +674,12 @@ OpnPool::update_numbers(poolstate_t const * const state)
  * @param[in] rts_pin GPIO pin for RS-485 direction control.
  */
 void
-OpnPool::set_rs485_pins(uint8_t const rx_pin, uint8_t const tx_pin, uint8_t const rts_pin)
+OpnPool::set_rs485_pins(uint8_t const rx_pin, uint8_t const tx_pin, int8_t const rts_pin, uint8_t const a5_version)
 {
     rs485_pins_.rx_pin = rx_pin;
     rs485_pins_.tx_pin = tx_pin;
     rs485_pins_.rts_pin = rts_pin;
+    rs485_pins_.a5_version = a5_version;
 }
 
 void

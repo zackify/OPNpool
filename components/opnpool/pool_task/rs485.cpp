@@ -58,7 +58,7 @@ constexpr uart_hw_flowcontrol_t FLOW_CTRL = UART_HW_FLOWCTRL_DISABLE;
 constexpr uart_sclk_t           CLOCK_SRC = UART_SCLK_DEFAULT;
 constexpr uint8_t               RX_FLOW_CTRL_THRESH = 122;
 
-static gpio_num_t  _rts_pin;
+static gpio_num_t  _rts_pin = GPIO_NUM_NC;
 
 /**
  * @brief Returns the number of bytes available in the UART RX buffer.
@@ -159,6 +159,13 @@ _tx_mode(bool const tx_enable)
     // A note on the DE signal:
     //  - choose a GPIO that doesn't mind being pulled down during reset
 
+    if (_rts_pin == GPIO_NUM_NC) {
+        if (!tx_enable) {
+            ESP_ERROR_CHECK(uart_wait_tx_done(UART_PORT, TX_TIMEOUT));
+        }
+        return;
+    }
+
     if (tx_enable) {
         gpio_set_level(_rts_pin, 1);  // enable RS485 transmit DE=1 and RE*=1 (DE=driver enable, RE*=inverted receive enable)
     } else {
@@ -205,18 +212,25 @@ rs485_init(rs485_pins_t const * const rs485_pins)
     };
 #pragma GCC diagnostic pop
 
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << static_cast<uint8_t>(_rts_pin)),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    ESP_ERROR_CHECK(gpio_config(&io_conf));
-    gpio_set_level(_rts_pin, 0);
+    if (_rts_pin != GPIO_NUM_NC) {
+        gpio_config_t io_conf = {
+            .pin_bit_mask = (1ULL << static_cast<uint8_t>(_rts_pin)),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE,
+        };
+        ESP_ERROR_CHECK(gpio_config(&io_conf));
+        gpio_set_level(_rts_pin, 0);
+    }
 
-    ESP_LOGI(TAG, "Initializing RS485 on UART%u (RX pin %u, TX pin %u, RTS pin %u) ..",
-             UART_PORT, rx_pin, tx_pin, _rts_pin);
+    if (_rts_pin == GPIO_NUM_NC) {
+        ESP_LOGI(TAG, "Initializing RS485 on UART%u (RX pin %u, TX pin %u, manual RTS disabled) ..",
+                 UART_PORT, rx_pin, tx_pin);
+    } else {
+        ESP_LOGI(TAG, "Initializing RS485 on UART%u (RX pin %u, TX pin %u, RTS pin %u) ..",
+                 UART_PORT, rx_pin, tx_pin, _rts_pin);
+    }
 
     uart_param_config(UART_PORT, &uart_config);
     uart_set_pin(UART_PORT, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
@@ -244,6 +258,7 @@ rs485_init(rs485_pins_t const * const rs485_pins)
     handle->queue = _queue;
     handle->dequeue = _dequeue;
     handle->tx_q = tx_q;
+    handle->a5_version = rs485_pins->a5_version;
     
     _tx_mode(false);
 

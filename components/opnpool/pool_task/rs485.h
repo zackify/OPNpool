@@ -92,6 +92,7 @@ struct rs485_instance_t {
     rs485_queue_fnc_t       queue;        ///< Queues packet to tx_q for transmission.
     rs485_dequeue_fnc_t     dequeue;      ///< Dequeues packet from tx_q.
     QueueHandle_t           tx_q;         ///< FreeRTOS transmit queue handle.
+    uint8_t                 a5_version;   ///< A5 header version byte for transmitted controller packets.
 };
 
 /// @}

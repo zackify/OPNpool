@@ -63,6 +63,7 @@ namespace opnpool {
 namespace poolstate_rx {
 
 constexpr char TAG[] = "poolstate_rx";
+constexpr uint8_t PUMP_RPM_REG_ADDR = 0x02;
 
 /// @name State Update Helpers
 /// @brief Internal functions for updating pool state fields from message data.
@@ -244,7 +245,7 @@ _pump_reg_set(cJSON * const dbg, network_pump_reg_set_t const * const msg, datal
 
     auto * const pump = &pumps[enum_index(pump_id)];
 
-    if (msg->operation.is_write() && msg->address == network_pump_reg_addr_t::RPM) {
+    if (msg->operation.is_write() && static_cast<uint8_t>(msg->address) == PUMP_RPM_REG_ADDR) {
         pump->set_speed = {
             .valid = true,
             .value = msg->value.to_uint16()

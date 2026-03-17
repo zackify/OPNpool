@@ -51,7 +51,8 @@ class OpnPoolNumber;
 struct rs485_pins_t {
     uint8_t rx_pin{21};   ///< Receive pin GPIO number.
     uint8_t tx_pin{22};   ///< Transmit pin GPIO number.
-    uint8_t rts_pin{23};  ///< Direction control (RTS) pin GPIO number.
+    int8_t rts_pin{23};   ///< Direction control (RTS) pin GPIO number, or -1 to disable manual DE/RE control.
+    uint8_t a5_version{0x07};  ///< A5 header version byte used for transmitted controller packets.
 };
 
 /**
@@ -71,7 +72,7 @@ class OpnPool : public Component {
     ~OpnPool();                 ///< Cleans up resources.
 
     // ========== RS-485 Configuration ==========
-    void set_rs485_pins(uint8_t rx_pin, uint8_t tx_pin, uint8_t rts_pin);
+    void set_rs485_pins(uint8_t rx_pin, uint8_t tx_pin, int8_t rts_pin, uint8_t a5_version);
 
     // ========== Climate Setters ==========
     void set_pool_climate(OpnPoolClimate * const climate);
