@@ -70,30 +70,6 @@ constexpr uint8_t PUMP_RPM_REG_ADDR = 0x02;
 /// @{
 
 static void
-_update_circuit_active_from_bits(poolstate_circuit_t * const arr, uint16_t const bits, uint8_t const count)
-{
-    for (uint16_t ii = 0, mask = 0x0001; ii < count; ++ii, mask <<= 1) {
-        arr[ii].active = {
-            .valid = true,
-            .value = (bits & mask) != 0
-        };
-        ESP_LOGVV(TAG, "  arr[%u] = %u", ii, arr[ii].active.value);
-    }
-}
-
-static void 
-_update_circuit_delay_from_bits(poolstate_circuit_t * const arr, uint16_t const bits, uint8_t const count)
-{
-    for (uint16_t ii = 0, mask = 0x0001; ii < count; ++ii, mask <<= 1) {
-        arr[ii].delay = {
-            .valid = true,
-            .value = (bits & mask) != 0
-        };
-        ESP_LOGVV(TAG, "  arr[%u] = %u", ii, arr[ii].delay.value);
-    }
-}
-
-static void
 _update_circuits(cJSON * const dbg, network_ctrl_state_bcast_t const * const msg, poolstate_circuit_t * const circuits)
 {
     constexpr uint8_t pool_idx = enum_index(network_pool_circuit_t::POOL);
