@@ -82,11 +82,11 @@ OpnPoolNumber::control(float value)
 
     ESP_LOGI(TAG, "Setting pump speed to %u RPM", rpm);
 
-    network_msg_t msg = {};
-    msg.src = controller_addr;
-    msg.dst = datalink_addr_t::pump(datalink_pump_id_t::PRIMARY);
-    msg.typ = network_msg_typ_t::PUMP_REG_SET;
-    msg.u.a5 = {
+    network_msg_t pump_write_msg = {};
+    pump_write_msg.src = controller_addr;
+    pump_write_msg.dst = datalink_addr_t::pump(datalink_pump_id_t::PRIMARY);
+    pump_write_msg.typ = network_msg_typ_t::PUMP_REG_SET;
+    pump_write_msg.u.a5 = {
         .pump_reg_set = {
             .address = static_cast<network_pump_reg_addr_t>(PUMP_RPM_REG_ADDR),
             .operation = {network_pump_reg_operation_t::WRITE},
@@ -98,12 +98,12 @@ OpnPoolNumber::control(float value)
     };
 
     ESP_LOGV(TAG, "Sending PUMP_REG_SET command: src=0x%02X addr=0x%02X, op=0x%02X, value=%u",
-              msg.src.addr,
-              static_cast<uint8_t>(msg.u.a5.pump_reg_set.address),
-              msg.u.a5.pump_reg_set.operation.raw,
-              msg.u.a5.pump_reg_set.value.to_uint16());
+              pump_write_msg.src.addr,
+              static_cast<uint8_t>(pump_write_msg.u.a5.pump_reg_set.address),
+              pump_write_msg.u.a5.pump_reg_set.operation.raw,
+              pump_write_msg.u.a5.pump_reg_set.value.to_uint16());
 
-    if (ipc_send_network_msg_to_pool_task(&msg, this->parent_->get_ipc()) != ESP_OK) {
+    if (ipc_send_network_msg_to_pool_task(&pump_write_msg, this->parent_->get_ipc()) != ESP_OK) {
         ESP_LOGW(TAG, "Failed to send PUMP_REG_SET message to pool task");
     }
 }

@@ -94,8 +94,10 @@ enum class datalink_ctrl_typ_t : uint8_t {
     SOLARPUMP_REQ    = 0xE2,
     DELAY_RESP       = 0x23,
     DELAY_REQ        = 0xE3,
+    UNKNOWN_18       = 0x18,
     HEAT_SETPT_RESP  = 0x28,
     HEAT_SETPT_REQ   = 0xE8,
+    UNKNOWN_D8       = 0xD8,
     VERSION_RESP     = 0xFC,
     VERSION_REQ      = 0xFD
     // SPA_CTRL_REQ     = 0xD6,

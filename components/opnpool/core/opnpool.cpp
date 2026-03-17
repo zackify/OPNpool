@@ -372,11 +372,18 @@ OpnPool::loop() {
         poolState_->get(&new_state);
 
         if (msg.src.is_controller()) {
-            new_state.system.addr = {
-                .valid = true,
-                .value = msg.src
-            };
-            ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+            bool const should_learn =
+                !new_state.system.addr.valid ||
+                !new_state.system.addr.value.is_controller() ||
+                (new_state.system.addr.value.addr != datalink_addr_t::SUNTOUCH_CONTROLLER &&
+                 msg.src.addr == datalink_addr_t::SUNTOUCH_CONTROLLER);
+            if (should_learn) {
+                new_state.system.addr = {
+                    .valid = true,
+                    .value = msg.src
+                };
+                ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+            }
         }
 
         if (poolstate_rx::update_state(&msg, &new_state) == ESP_OK) {

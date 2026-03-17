@@ -63,9 +63,82 @@ constexpr char TAG[] = "pool_task";
 constexpr uint32_t POOL_TASK_DELAY_MS       = 100;        ///< Main loop delay between iterations [ms]
 constexpr uint32_t POOL_REQ_INTERVAL_MS     = 30 * 1000;  ///< Interval between periodic controller queries [ms]
 constexpr uint32_t POOL_REQ_TASK_STACK_SIZE = 2 * 4096;   ///< Stack size for pool_req_task [bytes]
+constexpr uint8_t PUMP_SCREEN_ENTER_VALUE   = 0x00;
+constexpr uint8_t PUMP_SCREEN_SELECT_VALUE  = 0x01;
 
 /// Controller address learned from broadcast messages. Used as destination for outgoing requests.
 static datalink_addr_t _controller_addr = datalink_addr_t::unknown();
+
+enum class pending_pump_speed_stage_t : uint8_t {
+    IDLE,
+    WAIT_HEAT_SETPT_RESP,
+    WAIT_UNKNOWN_18,
+    WAIT_CONTROLLER_PUMP_SYNC,
+};
+
+static pending_pump_speed_stage_t _pending_pump_speed_stage = pending_pump_speed_stage_t::IDLE;
+static bool _pending_pump_speed_valid = false;
+static network_msg_t _pending_pump_speed_msg = {};
+
+static void
+_queue_network_msg(rs485_handle_t const rs485, network_msg_t const & msg)
+{
+    datalink_pkt_t * const pkt = static_cast<datalink_pkt_t *>(calloc(1, sizeof(datalink_pkt_t)));
+    if (pkt == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate packet");
+        return;
+    }
+
+    if (network_create_pkt(&msg, pkt) == ESP_OK) {
+        datalink_tx_pkt_queue(rs485, pkt);
+        return;
+    }
+
+    if (pkt->skb) {
+        free(pkt->skb);
+    }
+    free(pkt);
+}
+
+static void
+_queue_pump_speed_screen_enter(rs485_handle_t const rs485)
+{
+    network_msg_t msg = {};
+    msg.src = datalink_addr_t::easytouch_controller();
+    msg.dst = _controller_addr;
+    msg.typ = network_msg_typ_t::CTRL_HEAT_SETPT_REQ;
+    msg.u.a5.ctrl_uint8 = {
+        .value = PUMP_SCREEN_ENTER_VALUE
+    };
+    ESP_LOGV(TAG, "Queueing pump speed screen enter: src=0x%02X value=0x%02X", msg.src.addr, msg.u.a5.ctrl_uint8.value);
+    _queue_network_msg(rs485, msg);
+}
+
+static void
+_queue_pump_speed_screen_select(rs485_handle_t const rs485)
+{
+    network_msg_t msg = {};
+    msg.src = datalink_addr_t::easytouch_controller();
+    msg.dst = _controller_addr;
+    msg.typ = network_msg_typ_t::CTRL_UNKNOWN_D8;
+    msg.u.a5.ctrl_uint8 = {
+        .value = PUMP_SCREEN_SELECT_VALUE
+    };
+    ESP_LOGV(TAG, "Queueing pump speed screen select: src=0x%02X value=0x%02X", msg.src.addr, msg.u.a5.ctrl_uint8.value);
+    _queue_network_msg(rs485, msg);
+}
+
+static void
+_queue_pending_pump_speed_write(rs485_handle_t const rs485)
+{
+    if (!_pending_pump_speed_valid) {
+        return;
+    }
+    ESP_LOGV(TAG, "Queueing pending pump speed write");
+    _queue_network_msg(rs485, _pending_pump_speed_msg);
+    _pending_pump_speed_valid = false;
+    _pending_pump_speed_stage = pending_pump_speed_stage_t::IDLE;
+}
 
 
 /**
@@ -95,12 +168,42 @@ _service_pkts_from_rs485(rs485_handle_t const rs485, ipc_t const * const ipc)
 
                 // snoop to find the controller address to use as the dst in _queue_req()
             if (msg.src.is_controller()) {
-                _controller_addr = msg.src;
-                ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+                bool const should_learn =
+                    !_controller_addr.is_controller() ||
+                    (_controller_addr.addr != datalink_addr_t::SUNTOUCH_CONTROLLER &&
+                     msg.src.addr == datalink_addr_t::SUNTOUCH_CONTROLLER);
+                if (should_learn) {
+                    _controller_addr = msg.src;
+                    ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+                }
             }
 
             if( ipc_send_network_msg_to_main_task(&msg, ipc) != ESP_OK) {
                 ESP_LOGW(TAG, "Failed to send network message to main task");
+            }
+
+            switch (_pending_pump_speed_stage) {
+                case pending_pump_speed_stage_t::WAIT_HEAT_SETPT_RESP:
+                    if (msg.typ == network_msg_typ_t::CTRL_HEAT_SETPT_RESP) {
+                        _queue_pump_speed_screen_select(rs485);
+                        _pending_pump_speed_stage = pending_pump_speed_stage_t::WAIT_UNKNOWN_18;
+                    }
+                    break;
+                case pending_pump_speed_stage_t::WAIT_UNKNOWN_18:
+                    if (msg.typ == network_msg_typ_t::CTRL_UNKNOWN_18) {
+                        _pending_pump_speed_stage = pending_pump_speed_stage_t::WAIT_CONTROLLER_PUMP_SYNC;
+                    }
+                    break;
+                case pending_pump_speed_stage_t::WAIT_CONTROLLER_PUMP_SYNC:
+                    if (msg.typ == network_msg_typ_t::PUMP_REG_SET &&
+                        msg.src.is_controller() &&
+                        msg.dst.is_pump() &&
+                        msg.u.a5.pump_reg_set.operation.is_write()) {
+                        _queue_pending_pump_speed_write(rs485);
+                    }
+                    break;
+                case pending_pump_speed_stage_t::IDLE:
+                    break;
             }
 
         } else {
@@ -131,16 +234,18 @@ _service_requests_from_main(rs485_handle_t rs485, ipc_t const * const ipc)
     network_msg_t msg;
 
     if (xQueueReceive(ipc->to_pool_q, &msg, (TickType_t)0) == pdPASS) {
+        if (msg.typ == network_msg_typ_t::PUMP_REG_SET) {
+            _pending_pump_speed_msg = msg;
+            _pending_pump_speed_valid = true;
 
-        datalink_pkt_t * const pkt = static_cast<datalink_pkt_t*>(calloc(1, sizeof(datalink_pkt_t)));
-
-        if (network_create_pkt(&msg, pkt) == ESP_OK) {
-
-            datalink_tx_pkt_queue(rs485, pkt);  // pkt and pkt->skb freed by recipient
+            if (_pending_pump_speed_stage == pending_pump_speed_stage_t::IDLE) {
+                _queue_pump_speed_screen_enter(rs485);
+                _pending_pump_speed_stage = pending_pump_speed_stage_t::WAIT_HEAT_SETPT_RESP;
+            }
             return;
         }
-        if (pkt->skb) free(pkt->skb);
-        free(pkt);
+
+        _queue_network_msg(rs485, msg);
     }
 }
 
