@@ -48,7 +48,6 @@
 #include "entities/opnpool_sensor.h"
 #include "entities/opnpool_binary_sensor.h"
 #include "entities/opnpool_text_sensor.h"
-#include "entities/opnpool_number.h"
 #include "opnpool_ids.h"
 #include "pool_task/network.h"
 #include "pool_task/network_msg.h"
@@ -398,7 +397,6 @@ OpnPool::loop() {
                 this->update_text_sensors(&new_state);
                 this->update_analog_sensors(&new_state);
                 this->update_binary_sensors(&new_state);
-                this->update_numbers(&new_state);
             }
  
             ESP_LOGVV(TAG, "FYI Poolstate changed");
@@ -462,9 +460,6 @@ OpnPool::dump_config() {
         if (idx != text_sensor_id_t::INTERFACE_FIRMWARE) {
             _dump_if(this->text_sensors_[enum_index(idx)]);
         }
-    }
-    for (auto idx : magic_enum::enum_values<number_id_t>()) {
-        _dump_if(this->numbers_[enum_index(idx)]);
     }
 }
 
@@ -646,27 +641,6 @@ OpnPool::update_text_sensors(poolstate_t const * const state)
         this->text_sensors_[enum_index(text_sensor_id_t::CONTROLLER_TYPE)],
         &state->system
     );
-}
-
-/**
- * @brief Updates number entities with current pool state.
- *
- * @param[in] state Pointer to the current pool state.
- */
-void
-OpnPool::update_numbers(poolstate_t const * const state)
-{
-    OpnPoolNumber * const speed_number = this->numbers_[enum_index(number_id_t::PRIMARY_PUMP_SPEED_SET)];
-    if (speed_number == nullptr) {
-        return;
-    }
-
-    auto const & pump = state->pumps[enum_index(datalink_pump_id_t::PRIMARY)];
-    if (pump.set_speed.valid) {
-        speed_number->publish_value_if_changed(static_cast<float>(pump.set_speed.value));
-    } else if (pump.speed.valid) {
-        speed_number->publish_value_if_changed(static_cast<float>(pump.speed.value));
-    }
 }
 
 // ============================================================================
@@ -885,12 +859,6 @@ void
 OpnPool::set_interface_firmware_text_sensor(OpnPoolTextSensor * const ts)
 {
     this->text_sensors_[enum_index(text_sensor_id_t::INTERFACE_FIRMWARE)] = ts;
-}
-
-void
-OpnPool::set_primary_pump_speed_set_number(OpnPoolNumber * const n)
-{
-    this->numbers_[enum_index(number_id_t::PRIMARY_PUMP_SPEED_SET)] = n;
 }
 
 #ifdef USE_MATTER

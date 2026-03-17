@@ -83,11 +83,6 @@ enum class text_sensor_id_t : uint8_t {
     INTERFACE_FIRMWARE  = 8   ///< Interface board firmware version.
 };
 
-    /// @brief Number entity identifiers for pool numeric controls.
-enum class number_id_t : uint8_t {
-    PRIMARY_PUMP_SPEED_SET = 0  ///< Primary pump speed setpoint control.
-};
-
 /**
  * @brief Converts a climate entity ID to the corresponding thermostat type.
  *

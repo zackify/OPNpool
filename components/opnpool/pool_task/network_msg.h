@@ -253,14 +253,6 @@ struct network_ctrl_delay_resp_t {
     uint8_t unknown[2];  // 10 00
 } PACK8;
 
-struct network_ctrl_uint8_t {
-    uint8_t value;
-} PACK8;
-
-struct network_ctrl_unknown_18_t {
-    uint8_t unknown[31];
-} PACK8;
-
 struct network_ctrl_heat_setpt_resp_t {
     uint8_t unknown[10];  // 00 00 00 00 00 00 00 00 00 00 
 } PACK8;
@@ -518,8 +510,6 @@ union network_data_a5_t {
     network_ctrl_version_resp_t    ctrl_version_resp;
     network_ctrl_solarpump_resp_t  ctrl_solarpump_resp;
     network_ctrl_delay_resp_t      ctrl_delay_resp;
-    network_ctrl_uint8_t           ctrl_uint8;
-    network_ctrl_unknown_18_t      ctrl_unknown_18;
     network_ctrl_heat_setpt_resp_t ctrl_heat_setpt_resp;
     network_ctrl_circ_names_req_t  ctrl_circ_names_req;
     network_ctrl_circ_names_resp_t ctrl_circ_names_resp;
@@ -601,10 +591,8 @@ union network_data_t {
     X(CTRL_SOLARPUMP_RESP,   sizeof(network_ctrl_solarpump_resp_t), false, A5_CTRL, datalink_ctrl_typ_t::SOLARPUMP_RESP)  \
     X(CTRL_DELAY_REQ,        0,                                     false, A5_CTRL, datalink_ctrl_typ_t::DELAY_REQ)       \
     X(CTRL_DELAY_RESP,       sizeof(network_ctrl_delay_resp_t),     false, A5_CTRL, datalink_ctrl_typ_t::DELAY_RESP)      \
-    X(CTRL_UNKNOWN_18,       sizeof(network_ctrl_unknown_18_t),     false, A5_CTRL, datalink_ctrl_typ_t::UNKNOWN_18)      \
-    X(CTRL_HEAT_SETPT_REQ,   sizeof(network_ctrl_uint8_t),          false, A5_CTRL, datalink_ctrl_typ_t::HEAT_SETPT_REQ)  \
+    X(CTRL_HEAT_SETPT_REQ,   0,                                     false, A5_CTRL, datalink_ctrl_typ_t::HEAT_SETPT_REQ)  \
     X(CTRL_HEAT_SETPT_RESP,  sizeof(network_ctrl_heat_setpt_resp_t),false, A5_CTRL, datalink_ctrl_typ_t::HEAT_SETPT_RESP) \
-    X(CTRL_UNKNOWN_D8,       sizeof(network_ctrl_uint8_t),          false, A5_CTRL, datalink_ctrl_typ_t::UNKNOWN_D8)      \
     X(CTRL_CIRC_NAMES_REQ,   sizeof(network_ctrl_circ_names_req_t), false, A5_CTRL, datalink_ctrl_typ_t::CIRC_NAMES_REQ)  \
     X(CTRL_CIRC_NAMES_RESP,  sizeof(network_ctrl_circ_names_resp_t),false, A5_CTRL, datalink_ctrl_typ_t::CIRC_NAMES_RESP) \
     X(CTRL_SCHEDS_REQ,       sizeof(network_ctrl_scheds_req_t),     false, A5_CTRL, datalink_ctrl_typ_t::SCHEDS_REQ)    \

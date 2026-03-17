@@ -1051,11 +1051,7 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
         case network_msg_typ_t::CTRL_DELAY_RESP:
             _ctrl_hex_bytes(dbg, msg->u.raw, sizeof(network_ctrl_delay_resp_t));
             break;
-        case network_msg_typ_t::CTRL_UNKNOWN_18:
-            _ctrl_hex_bytes(dbg, msg->u.raw, sizeof(network_ctrl_unknown_18_t));
-            break;
         case network_msg_typ_t::CTRL_HEAT_SETPT_REQ:
-        case network_msg_typ_t::CTRL_UNKNOWN_D8:
             break;
         case network_msg_typ_t::CTRL_HEAT_SETPT_RESP:
             _ctrl_hex_bytes(dbg, msg->u.raw, sizeof(network_ctrl_heat_setpt_resp_t));
