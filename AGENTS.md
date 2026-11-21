@@ -18,6 +18,8 @@ packets go out with source 0x20 (EasyTouch address), exactly like the remote doe
   probably "check PCB" but is still treated as OK. Verify by
   triggering states and reading the log, then fix the mapping in `core/poolstate.h`
   (`poolstate_chlor_status_typ_t`) and `core/poolstate_rx.cpp` (`_get_chlor_status_from_error`).
+- Salt readings of 0 (the cell periodically reports "no reading", about every 2 minutes for ~20 s) are ignored; the sensor
+  keeps the last good value (`_chlor_model_resp` / `_chlor_level_set_resp` in `core/poolstate_rx.cpp`).
 - Receive-filter fix: the cell's replies are addressed to 0x00; `network_rx_msg` used to drop them.
 - Number `chlorinator_level_set` (0-100 %): sends the same A5 command as the remote (see protocol below). The controller
   stores the setpoint, so ONE command per change is enough; nothing needs to be re-sent.

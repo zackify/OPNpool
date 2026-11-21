@@ -857,10 +857,15 @@ _chlor_model_resp(cJSON * const dbg, network_chlor_model_resp_t const * const ms
 {
     if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
 
-    chlor->salt = {
-        .valid = true,
-        .value = static_cast<uint16_t>(msg->salt * 50)
-    };
+        // the cell periodically reports salt = 0 (no reading); ignore it and keep the last good value
+    if (msg->salt != 0) {
+        chlor->salt = {
+            .valid = true,
+            .value = static_cast<uint16_t>(msg->salt * 50)
+        };
+    } else {
+        ESP_LOGD("opnpool_chlor", "MODEL_RESP salt=0 ignored");
+    }
 
     uint32_t name_size = sizeof(chlor->name.value);
     strncpy(chlor->name.value, msg->name, name_size);
@@ -915,10 +920,15 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
 {
     if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
 
-    chlor->salt = {
-        .valid = true,
-        .value = static_cast<uint16_t>(msg->salt * 50)
-    };
+        // the cell periodically reports salt = 0 (no reading); ignore it and keep the last good value
+    if (msg->salt != 0) {
+        chlor->salt = {
+            .valid = true,
+            .value = static_cast<uint16_t>(msg->salt * 50)
+        };
+    } else {
+        ESP_LOGD("opnpool_chlor", "LEVEL_RESP salt=0 ignored");
+    }
     chlor->status = {
         .valid = true,
         .value = _get_chlor_status_from_error(msg->error)
