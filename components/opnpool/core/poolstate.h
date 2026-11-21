@@ -239,7 +239,7 @@ enum class poolstate_chlor_status_typ_t : uint8_t {
     OTHER      = 0x00,  ///< Unknown or other status.
     LOW_FLOW   = 0x01,  ///< Low water flow detected.
     LOW_SALT   = 0x02,  ///< Salt level too low.
-    HIGH_SALT  = 0x04,  ///< Salt level too high.
+    VERY_LOW_SALT  = 0x04,  ///< Salt level very low (bit 0x04; meaning inferred, see AGENTS.md).
     UNKNOWN_08 = 0x08,  ///< Reserved/unknown flag.
     CLEAN_CELL = 0x10,  ///< Cell needs cleaning.
     UNKNOWN_20 = 0x20,  ///< Reserved/unknown flag.

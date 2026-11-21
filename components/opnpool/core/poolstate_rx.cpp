@@ -807,7 +807,7 @@ _get_chlor_status_from_error(uint8_t const error)
 
     if (error & static_cast<uint8_t>(T::LOW_FLOW))   return T::LOW_FLOW;
     if (error & static_cast<uint8_t>(T::LOW_SALT))   return T::LOW_SALT;
-    if (error & static_cast<uint8_t>(T::HIGH_SALT))  return T::HIGH_SALT;
+    if (error & static_cast<uint8_t>(T::VERY_LOW_SALT))  return T::VERY_LOW_SALT;
     if (error & static_cast<uint8_t>(T::CLEAN_CELL)) return T::CLEAN_CELL;
     if (error & static_cast<uint8_t>(T::COLD))       return T::COLD;
     if (error & static_cast<uint8_t>(T::OK))         return T::OK;
@@ -927,7 +927,7 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
         .valid = true,
         .value = msg->error
     };
-    ESP_LOGD("opnpool_chlor", "LEVEL_RESP: salt=%u ppm (raw %u) error=0x%02X [flow=%d low_salt=%d high_salt=%d clean=%d cold=%d]",
+    ESP_LOGD("opnpool_chlor", "LEVEL_RESP: salt=%u ppm (raw %u) error=0x%02X [flow=%d low_salt=%d very_low_salt=%d clean=%d cold=%d]",
              chlor->salt.value, msg->salt, msg->error,
              !!(msg->error & 0x01), !!(msg->error & 0x02), !!(msg->error & 0x04), !!(msg->error & 0x10), !!(msg->error & 0x40));
 

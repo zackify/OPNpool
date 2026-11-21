@@ -71,7 +71,7 @@ enum class binary_sensor_id_t : uint8_t {
     MODE_TIMEOUT           = 4,  ///< Timeout mode active indicator.
     CHLORINATOR_LOW_FLOW   = 5,  ///< Salt cell error bit 0x01: flow switch, low or no flow.
     CHLORINATOR_LOW_SALT   = 6,  ///< Salt cell error bit 0x02: low salt.
-    CHLORINATOR_HIGH_SALT  = 7,  ///< Salt cell error bit 0x04: high salt.
+    CHLORINATOR_VERY_LOW_SALT  = 7,  ///< Salt cell error bit 0x04: very low salt.
     CHLORINATOR_CLEAN_CELL = 8,  ///< Salt cell error bit 0x10: clean cell.
     CHLORINATOR_COLD       = 9   ///< Salt cell error bit 0x40: water too cold.
 };

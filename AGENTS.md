@@ -10,11 +10,12 @@ OTA password in `pool/secrets.yaml` of the `pool` repo. Its pool controller is a
 packets go out with source 0x20 (EasyTouch address), exactly like the remote does.
 
 ## What this branch adds (salt cell)
-- Sensors: Chlorinator Salt (ppm), Level (%), Status (text: OK / Low flow / Low salt / High salt / Clean cell / Cold),
+- Sensors: Chlorinator Salt (ppm), Level (%), Status (text: OK / Low flow / Low salt / Very low salt / Clean cell / Cold),
   Error Byte (debug, raw), Name.
-- Binary sensors, one per error bit: low flow 0x01, low salt 0x02, high salt 0x04, clean cell 0x10, cold 0x40.
-  NOTE: bit meanings follow upstream and are NOT all verified. On the real cell the byte read 0x84 at 2550 ppm and
-  upstream's "0x04 = high salt" looks wrong (probably "very low salt"); 0x80 is probably "check PCB". Verify by
+- Binary sensors, one per error bit: low flow 0x01, low salt 0x02, very low salt 0x04, clean cell 0x10, cold 0x40.
+  NOTE: bit meanings are NOT all verified. Upstream labelled 0x04 "high salt", but the real cell read 0x84 at 2550 ppm
+  (low, not high), so it is now "Very low salt" (matches other Pentair protocol notes, still unconfirmed). 0x80 is
+  probably "check PCB" but is still treated as OK. Verify by
   triggering states and reading the log, then fix the mapping in `core/poolstate.h`
   (`poolstate_chlor_status_typ_t`) and `core/poolstate_rx.cpp` (`_get_chlor_status_from_error`).
 - Receive-filter fix: the cell's replies are addressed to 0x00; `network_rx_msg` used to drop them.

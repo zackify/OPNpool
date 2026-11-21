@@ -203,7 +203,7 @@ _chlor_status_text(poolstate_chlor_status_typ_t const status)
         case poolstate_chlor_status_typ_t::OK:         return "OK";
         case poolstate_chlor_status_typ_t::LOW_FLOW:   return "Low flow";
         case poolstate_chlor_status_typ_t::LOW_SALT:   return "Low salt";
-        case poolstate_chlor_status_typ_t::HIGH_SALT:  return "High salt";
+        case poolstate_chlor_status_typ_t::VERY_LOW_SALT:  return "Very low salt";
         case poolstate_chlor_status_typ_t::CLEAN_CELL: return "Clean cell";
         case poolstate_chlor_status_typ_t::COLD:       return "Cold";
         default:                                       return "Other";
@@ -226,7 +226,7 @@ _publish_chlor_error_bits_if(OpnPoolBinarySensor * const * const sensors, poolst
     struct { binary_sensor_id_t id; T bit; } const map[] = {
         { binary_sensor_id_t::CHLORINATOR_LOW_FLOW,   T::LOW_FLOW   },
         { binary_sensor_id_t::CHLORINATOR_LOW_SALT,   T::LOW_SALT   },
-        { binary_sensor_id_t::CHLORINATOR_HIGH_SALT,  T::HIGH_SALT  },
+        { binary_sensor_id_t::CHLORINATOR_VERY_LOW_SALT,  T::VERY_LOW_SALT  },
         { binary_sensor_id_t::CHLORINATOR_CLEAN_CELL, T::CLEAN_CELL },
         { binary_sensor_id_t::CHLORINATOR_COLD,       T::COLD       },
     };
@@ -899,9 +899,9 @@ OpnPool::set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs)
 }
 
 void
-OpnPool::set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs)
+OpnPool::set_chlorinator_very_low_salt_binary_sensor(OpnPoolBinarySensor * const bs)
 {
-    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_HIGH_SALT)] = bs;
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_VERY_LOW_SALT)] = bs;
 }
 
 void

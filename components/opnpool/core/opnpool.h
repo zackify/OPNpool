@@ -109,7 +109,7 @@ class OpnPool : public Component {
     void set_mode_timeout_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_chlorinator_low_flow_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs);
-    void set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_very_low_salt_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_chlorinator_clean_cell_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_chlorinator_cold_binary_sensor(OpnPoolBinarySensor * const bs);
 

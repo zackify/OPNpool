@@ -491,7 +491,7 @@ struct network_chlor_level10_set_t {
 
 struct network_chlor_level_resp_t {
     uint8_t  salt;              ///< Parts per million /50
-    uint8_t  error;             ///< error bits: low flow (0x01), low salt (0x02), high salt (0x04), clean cell (0x10), cold (0x40), OK (0x80)
+    uint8_t  error;             ///< error bits: low flow (0x01), low salt (0x02), very low salt (0x04), clean cell (0x10), cold (0x40), OK (0x80)
 } PACK8;
 
 struct network_chlor_ichlor_bcast_t {
