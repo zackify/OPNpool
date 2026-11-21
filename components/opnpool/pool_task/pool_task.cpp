@@ -67,6 +67,26 @@ constexpr uint32_t POOL_REQ_TASK_STACK_SIZE = 2 * 4096;   ///< Stack size for po
 /// Controller address learned from broadcast messages. Used as destination for outgoing requests.
 static datalink_addr_t _controller_addr = datalink_addr_t::unknown();
 
+static void
+_queue_network_msg(rs485_handle_t const rs485, network_msg_t const & msg)
+{
+    datalink_pkt_t * const pkt = static_cast<datalink_pkt_t *>(calloc(1, sizeof(datalink_pkt_t)));
+    if (pkt == nullptr) {
+        ESP_LOGE(TAG, "Failed to allocate packet");
+        return;
+    }
+
+    if (network_create_pkt(&msg, pkt) == ESP_OK) {
+        datalink_tx_pkt_queue(rs485, pkt);
+        return;
+    }
+
+    if (pkt->skb) {
+        free(pkt->skb);
+    }
+    free(pkt);
+}
+
 
 /**
  * @brief Processes incoming packets from the RS-485 bus and relays messages to the main task.
@@ -95,8 +115,14 @@ _service_pkts_from_rs485(rs485_handle_t const rs485, ipc_t const * const ipc)
 
                 // snoop to find the controller address to use as the dst in _queue_req()
             if (msg.src.is_controller()) {
-                _controller_addr = msg.src;
-                ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+                bool const should_learn =
+                    !_controller_addr.is_controller() ||
+                    (_controller_addr.addr != datalink_addr_t::SUNTOUCH_CONTROLLER &&
+                     msg.src.addr == datalink_addr_t::SUNTOUCH_CONTROLLER);
+                if (should_learn) {
+                    _controller_addr = msg.src;
+                    ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+                }
             }
 
             if( ipc_send_network_msg_to_main_task(&msg, ipc) != ESP_OK) {
@@ -131,16 +157,7 @@ _service_requests_from_main(rs485_handle_t rs485, ipc_t const * const ipc)
     network_msg_t msg;
 
     if (xQueueReceive(ipc->to_pool_q, &msg, (TickType_t)0) == pdPASS) {
-
-        datalink_pkt_t * const pkt = static_cast<datalink_pkt_t*>(calloc(1, sizeof(datalink_pkt_t)));
-
-        if (network_create_pkt(&msg, pkt) == ESP_OK) {
-
-            datalink_tx_pkt_queue(rs485, pkt);  // pkt and pkt->skb freed by recipient
-            return;
-        }
-        if (pkt->skb) free(pkt->skb);
-        free(pkt);
+        _queue_network_msg(rs485, msg);
     }
 }
 
@@ -196,7 +213,7 @@ _forward_queued_pkt_to_rs485(rs485_handle_t const rs485, ipc_t const * const ipc
 {
     datalink_pkt_t const * const pkt = rs485->dequeue(rs485);
     if (pkt) {
-        ESP_LOGVV(TAG, "forward_queue: pkt typ=%s", enum_str(static_cast<datalink_ctrl_typ_t>(pkt->typ)));
+        ESP_LOGVV(TAG, "forward_queue: pkt prot=%s typ=0x%02X", enum_str(pkt->prot), pkt->typ.raw);
 
         if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
             size_t const dbg_size = 128;
@@ -217,7 +234,7 @@ _forward_queued_pkt_to_rs485(rs485_handle_t const rs485, ipc_t const * const ipc
         bool txOpportunity = false;
         network_msg_t msg;
 
-        ESP_LOGVV(TAG, "pretend rx: pkt typ=%s", enum_str(static_cast<datalink_ctrl_typ_t>(pkt->typ)));
+        ESP_LOGVV(TAG, "pretend rx: pkt prot=%s typ=0x%02X", enum_str(pkt->prot), pkt->typ.raw);
 
         if (network_rx_msg(pkt, &msg, &txOpportunity) == ESP_OK) {
 
@@ -261,6 +278,7 @@ pool_req_task(void * rs485_void)
 
         _queue_req(rs485, network_msg_typ_t::CTRL_HEAT_REQ);
         _queue_req(rs485, network_msg_typ_t::CTRL_SCHED_REQ);
+        _queue_req(rs485, network_msg_typ_t::CTRL_CHLOR_REQ);  // salt cell setpoint + name (readback of what the remote/we set)
     }
 }
 

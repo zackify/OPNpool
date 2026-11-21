@@ -219,6 +219,7 @@ struct poolstate_pump_t {
     poolstate_pump_mode_t  mode;     ///< Operating mode (from pump_status_resp, pump_run_mode).
     poolstate_bool_t       running;  ///< True if pump is running (from pump_status_resp, pump_run).
     poolstate_pump_state_t state;    ///< Pump state (from pump_status_resp).
+    poolstate_uint16_t     set_speed;///< Commanded RPM setpoint (from pump_reg_set writes).
     poolstate_uint16_t     power;    ///< Power consumption in watts (from pump_status_resp).
     poolstate_uint16_t     flow;     ///< Flow rate in GPM (from pump_status_resp).
     poolstate_uint16_t     speed;    ///< Speed in RPM (from pump_status_resp).
@@ -264,6 +265,9 @@ struct poolstate_chlor_t {
     poolstate_uint8_t        level;   ///< Chlorination level percentage (from chlor_level_set).
     poolstate_uint16_t       salt;    ///< Salt level in PPM (from chlor_level_resp, chlor_name_resp).
     poolstate_chlor_status_t status;  ///< Status/error flags (from chlor_level_resp).
+    poolstate_uint8_t        setpt_pool; ///< Pool output setpoint percent (from ctrl_chlor_resp / ctrl_chlor_set).
+    poolstate_uint8_t        setpt_spa;  ///< Spa setpoint byte as the controller reports it (kept so a pool-only change can echo it).
+    poolstate_uint8_t        error;   ///< Raw error bits from the cell (from chlor_level_resp); see poolstate_chlor_status_typ_t.
 };
 
 /// @}

@@ -266,6 +266,28 @@ struct network_ctrl_circ_names_resp_t {
     uint8_t unknown[5];  // req 0x02 -> resp 02 00 03 00 00
 } PACK8;
 
+/// @brief Salt cell output setpoint command (action 0x99), as sent by the remote.
+struct network_ctrl_chlor_set_t {
+    uint8_t spa;         // spa setpoint byte (the remote changes it together with the pool %; we echo the current value)
+    uint8_t pool;        // pool output percent, 0..100
+    uint8_t unknown[2];  // always 00 00
+} PACK8;
+
+struct network_ctrl_chlor_req_t {
+    uint8_t unknown;     // 0x00
+} PACK8;
+
+/// @brief Controller's salt cell config response (action 0x19, 22 bytes).
+struct network_ctrl_chlor_resp_t {
+    uint8_t spa;         // spa setpoint byte
+    uint8_t pool;        // pool output percent
+    uint8_t flags;       // 0x81 observed
+    uint8_t salt;        // ppm / 50
+    uint8_t status;      // error/status bits (same as IC LEVEL_RESP)
+    uint8_t unknown_5;   // 0x00 observed
+    char    name[16];    // e.g. "Intellichlor--40", not \0 terminated
+} PACK8;
+
 struct network_ctrl_chem_req_t {
     uint8_t unknown;  // 0xD2
 } PACK8;
@@ -516,6 +538,9 @@ union network_data_a5_t {
     network_ctrl_scheds_req_t      ctrl_scheds_req;
     network_ctrl_scheds_resp_t     ctrl_scheds_resp;
     network_ctrl_chem_req_t        ctrl_chem_req;
+    network_ctrl_chlor_set_t       ctrl_chlor_set;
+    network_ctrl_chlor_req_t       ctrl_chlor_req;
+    network_ctrl_chlor_resp_t      ctrl_chlor_resp;
 } PACK8;
 
 union network_data_ic_t {
@@ -598,6 +623,9 @@ union network_data_t {
     X(CTRL_SCHEDS_REQ,       sizeof(network_ctrl_scheds_req_t),     false, A5_CTRL, datalink_ctrl_typ_t::SCHEDS_REQ)    \
     X(CTRL_SCHEDS_RESP,      sizeof(network_ctrl_scheds_resp_t),    false, A5_CTRL, datalink_ctrl_typ_t::SCHEDS_RESP)   \
     X(CTRL_CHEM_REQ,         sizeof(network_ctrl_chem_req_t),       false, A5_CTRL, datalink_ctrl_typ_t::CHEM_REQ)      \
+    X(CTRL_CHLOR_REQ,        sizeof(network_ctrl_chlor_req_t),      false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_REQ)     \
+    X(CTRL_CHLOR_RESP,       sizeof(network_ctrl_chlor_resp_t),     false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_RESP)    \
+    X(CTRL_CHLOR_SET,        sizeof(network_ctrl_chlor_set_t),      false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_SET)     \
     X(CHLOR_CONTROL_REQ,     sizeof(network_chlor_control_req_t),   false, IC,      datalink_chlor_typ_t::CONTROL_REQ)  \
     X(CHLOR_CONTROL_RESP,    sizeof(network_chlor_control_resp_t),  false, IC,      datalink_chlor_typ_t::CONTROL_RESP) \
     X(CHLOR_MODEL_REQ,       sizeof(network_chlor_model_req_t),     false, IC,      datalink_chlor_typ_t::MODEL_REQ)    \

@@ -63,53 +63,43 @@ namespace opnpool {
 namespace poolstate_rx {
 
 constexpr char TAG[] = "poolstate_rx";
+constexpr uint8_t PUMP_RPM_REG_ADDR = 0x02;
 
 /// @name State Update Helpers
 /// @brief Internal functions for updating pool state fields from message data.
 /// @{
 
 static void
-_update_circuit_active_from_bits(poolstate_circuit_t * const arr, uint16_t const bits, uint8_t const count)
-{
-    for (uint16_t ii = 0, mask = 0x0001; ii < count; ++ii, mask <<= 1) {
-        arr[ii].active = {
-            .valid = true,
-            .value = (bits & mask) != 0
-        };
-        ESP_LOGVV(TAG, "  arr[%u] = %u", ii, arr[ii].active.value);
-    }
-}
-
-static void 
-_update_circuit_delay_from_bits(poolstate_circuit_t * const arr, uint16_t const bits, uint8_t const count)
-{
-    for (uint16_t ii = 0, mask = 0x0001; ii < count; ++ii, mask <<= 1) {
-        arr[ii].delay = {
-            .valid = true,
-            .value = (bits & mask) != 0
-        };
-        ESP_LOGVV(TAG, "  arr[%u] = %u", ii, arr[ii].delay.value);
-    }
-}
-
-static void
 _update_circuits(cJSON * const dbg, network_ctrl_state_bcast_t const * const msg, poolstate_circuit_t * const circuits)
 {
     constexpr uint8_t pool_idx = enum_index(network_pool_circuit_t::POOL);
     constexpr uint8_t spa_idx  = enum_index(network_pool_circuit_t::SPA);
-
-        // update circuits[].active
     uint16_t const bitmask_active_circuits = msg->active.to_uint16();
-    _update_circuit_active_from_bits(circuits, bitmask_active_circuits, enum_count<network_pool_circuit_t>());
+    uint8_t const bitmask_delay_circuits = msg->delay;
+
+        // update circuits[].active and circuits[].delay using configured circuit+1 mapping
+    for (auto switch_id : magic_enum::enum_values<switch_id_t>()) {
+        network_pool_circuit_t const circuit = switch_id_to_network_circuit(switch_id);
+        uint8_t const circuit_idx = enum_index(circuit);
+        uint8_t const circuit_plus_1 = switch_id_to_circuit_plus_1(switch_id);
+        uint16_t const mask = (circuit_plus_1 >= 1 && circuit_plus_1 <= 16)
+                            ? static_cast<uint16_t>(1U << (circuit_plus_1 - 1))
+                            : 0;
+
+        circuits[circuit_idx].active = {
+            .valid = true,
+            .value = mask != 0 && (bitmask_active_circuits & mask) != 0
+        };
+        circuits[circuit_idx].delay = {
+            .valid = true,
+            .value = mask != 0 && (static_cast<uint16_t>(bitmask_delay_circuits) & mask) != 0
+        };
+    }
 
         // if both SPA and POOL bits are set, only SPA runs
     if (circuits[spa_idx].active.value) {
         circuits[pool_idx].active.value = false;
     }
-
-        // update circuits[].delay
-    uint8_t const bitmask_delay_circuits = msg->delay;
-    _update_circuit_delay_from_bits(circuits, bitmask_delay_circuits, enum_count<network_pool_circuit_t>());
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_circuits(dbg, poolstate_rx_log::KEY_CIRCUITS, circuits);
@@ -234,14 +224,22 @@ _update_temps(cJSON * const dbg, network_ctrl_state_bcast_t const * const msg, p
  * verbose logging is enabled, logs the register update to the debug JSON object.
  */
 static void
-_pump_reg_set(cJSON * const dbg, network_pump_reg_set_t const * const msg, datalink_pump_id_t const pump_id)
+_pump_reg_set(cJSON * const dbg, network_pump_reg_set_t const * const msg, datalink_pump_id_t const pump_id,
+              poolstate_pump_t * const pumps)
 {
-    if (!msg) {
+    if (!msg || !pumps) {
         ESP_LOGW(TAG, "null to %s", __func__);
         return;
     }
 
-    // no change to poolstate
+    auto * const pump = &pumps[enum_index(pump_id)];
+
+    if (msg->operation.is_write() && static_cast<uint8_t>(msg->address) == PUMP_RPM_REG_ADDR) {
+        pump->set_speed = {
+            .valid = true,
+            .value = msg->value.to_uint16()
+        };
+    }
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_pump_reg_set(dbg, poolstate_rx_log::KEY_REG, pump_id, msg);
@@ -409,6 +407,7 @@ _pump_status(cJSON * const dbg, network_pump_status_resp_t const * const msg, da
             .valid = true,
             .value = msg->state
         },
+        .set_speed = pump->set_speed,
         .power = {
             .valid = true,
             .value = msg->power.to_uint16()
@@ -804,6 +803,8 @@ _get_chlor_status_from_error(uint8_t const error)
 {
     using T = poolstate_chlor_status_typ_t;
 
+    if (error == 0) return T::OK;  // cell reports no error bits
+
     if (error & static_cast<uint8_t>(T::LOW_FLOW))   return T::LOW_FLOW;
     if (error & static_cast<uint8_t>(T::LOW_SALT))   return T::LOW_SALT;
     if (error & static_cast<uint8_t>(T::HIGH_SALT))  return T::HIGH_SALT;
@@ -921,11 +922,42 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
     chlor->status = {
         .valid = true,
         .value = _get_chlor_status_from_error(msg->error)
-    };  
+    };
+    chlor->error = {
+        .valid = true,
+        .value = msg->error
+    };
+    ESP_LOGD("opnpool_chlor", "LEVEL_RESP: salt=%u ppm (raw %u) error=0x%02X [flow=%d low_salt=%d high_salt=%d clean=%d cold=%d]",
+             chlor->salt.value, msg->salt, msg->error,
+             !!(msg->error & 0x01), !!(msg->error & 0x02), !!(msg->error & 0x04), !!(msg->error & 0x10), !!(msg->error & 0x40));
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_chlor_resp(dbg, poolstate_rx_log::KEY_CHLOR, chlor);
     }
+}
+
+static void
+_ctrl_chlor_set(cJSON * const dbg, network_ctrl_chlor_set_t const * const msg, poolstate_chlor_t * const chlor)
+{
+    (void)dbg;
+    if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
+    chlor->setpt_spa  = { .valid = true, .value = msg->spa };
+    chlor->setpt_pool = { .valid = true, .value = msg->pool };
+    ESP_LOGD("opnpool_chlor", "CHLOR_SET: pool=%u%% spa_byte=0x%02X", msg->pool, msg->spa);
+}
+
+static void
+_ctrl_chlor_resp(cJSON * const dbg, network_ctrl_chlor_resp_t const * const msg, poolstate_chlor_t * const chlor)
+{
+    (void)dbg;
+    if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
+    chlor->setpt_spa  = { .valid = true, .value = msg->spa };
+    chlor->setpt_pool = { .valid = true, .value = msg->pool };
+    memcpy(chlor->name.value, msg->name, sizeof(msg->name));
+    chlor->name.value[sizeof(msg->name)] = '\0';
+    chlor->name.valid = true;
+    ESP_LOGD("opnpool_chlor", "CHLOR_RESP: pool=%u%% spa_byte=0x%02X flags=0x%02X salt=%u ppm status=0x%02X name=%s",
+             msg->pool, msg->spa, msg->flags, msg->salt * 50, msg->status, chlor->name.value);
 }
 
 /// @}
@@ -967,7 +999,7 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
         case network_msg_typ_t::IGNORE:
             break;
         case network_msg_typ_t::PUMP_REG_SET:
-            _pump_reg_set(dbg, &msg->u.a5.pump_reg_set, pump_id);
+            _pump_reg_set(dbg, &msg->u.a5.pump_reg_set, pump_id, new_state->pumps);
             break;
         case network_msg_typ_t::PUMP_REG_RESP:
             _pump_reg_resp(dbg, &msg->u.a5.pump_reg_resp, pump_id);
@@ -1057,6 +1089,14 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
             _ctrl_hex_bytes(dbg, msg->u.raw, sizeof(network_ctrl_scheds_resp_t));
             break;
         case network_msg_typ_t::CTRL_CHEM_REQ:
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_REQ:
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_RESP:
+            _ctrl_chlor_resp(dbg, &msg->u.a5.ctrl_chlor_resp, &new_state->chlor);
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_SET:
+            _ctrl_chlor_set(dbg, &msg->u.a5.ctrl_chlor_set, &new_state->chlor);
             break;
         case network_msg_typ_t::CHLOR_CONTROL_REQ:
             _chlor_control_req(dbg, &msg->u.ic.chlor_control_req);

@@ -34,16 +34,16 @@ import re
 import subprocess
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import climate, switch, sensor, binary_sensor, text_sensor
+from esphome.components import climate, switch, sensor, binary_sensor, text_sensor, number
 from esphome.const import (
     CONF_ID,
     CONF_DEVICE_CLASS, DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_POWER, DEVICE_CLASS_VOLUME_FLOW_RATE, DEVICE_CLASS_EMPTY,
-    CONF_UNIT_OF_MEASUREMENT, UNIT_CELSIUS, UNIT_WATT, UNIT_EMPTY, UNIT_REVOLUTIONS_PER_MINUTE, UNIT_PARTS_PER_MILLION, UNIT_PERCENT,
-    CONF_STATE_CLASS, STATE_CLASS_MEASUREMENT
+    CONF_UNIT_OF_MEASUREMENT, UNIT_WATT, UNIT_EMPTY, UNIT_REVOLUTIONS_PER_MINUTE, UNIT_PARTS_PER_MILLION, UNIT_PERCENT,
+    CONF_STATE_CLASS, STATE_CLASS_MEASUREMENT,
 )
 
-DEPENDENCIES = ["climate", "switch", "sensor", "binary_sensor", "text_sensor"]
-AUTO_LOAD = ["climate", "switch", "sensor", "binary_sensor", "text_sensor"]
+DEPENDENCIES = ["climate", "switch", "sensor", "binary_sensor", "text_sensor", "number"]
+AUTO_LOAD = ["climate", "switch", "sensor", "binary_sensor", "text_sensor", "number"]
 
 # namespace and class definitions
 opnpool_ns = cg.esphome_ns.namespace("opnpool")
@@ -51,6 +51,7 @@ OpnPool             = opnpool_ns.class_("OpnPool", cg.Component)
 OpnPoolClimate      = opnpool_ns.class_("OpnPoolClimate", climate.Climate, cg.Component)
 OpnPoolSwitch       = opnpool_ns.class_("OpnPoolSwitch", switch.Switch, cg.Component)
 OpnPoolSensor       = opnpool_ns.class_("OpnPoolSensor", sensor.Sensor, cg.Component)
+OpnPoolNumber       = opnpool_ns.class_("OpnPoolNumber", number.Number, cg.Component)
 OpnPoolBinarySensor = opnpool_ns.class_("OpnPoolBinarySensor", binary_sensor.BinarySensor, cg.Component)
 OpnPoolTextSensor   = opnpool_ns.class_("OpnPoolTextSensor", text_sensor.TextSensor, cg.Component)
 
@@ -58,6 +59,8 @@ CONF_RS485         = "rs485"
 CONF_RS485_RX_PIN  = "rx_pin"
 CONF_RS485_TX_PIN  = "tx_pin"
 CONF_RS485_RTS_PIN = "rts_pin"
+CONF_RS485_A5_VERSION = "a5_version"
+CONF_CIRCUIT_PLUS_1 = "circuit_plus_1"
 
 # Matter over Thread configuration
 CONF_MATTER               = "matter"
@@ -91,22 +94,31 @@ CONF_SWITCHES = [  # used to overwrite switch_id_t enum in opnpool.h
     "feature4"
 ]
 CONF_ANALOG_SENSORS = { # keys are used to overwrite sensor_id_t enum in opnpool.h
-    "air_temperature":    {"unit": UNIT_CELSIUS, CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
-    "water_temperature":  {"unit": UNIT_CELSIUS, CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "air_temperature":    {"unit": "°F", CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "water_temperature":  {"unit": "°F", CONF_DEVICE_CLASS: DEVICE_CLASS_TEMPERATURE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_power": {"unit": UNIT_WATT, CONF_DEVICE_CLASS: DEVICE_CLASS_POWER, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_flow":  {"unit": "gal/min", CONF_DEVICE_CLASS: DEVICE_CLASS_VOLUME_FLOW_RATE, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_speed": {"unit": UNIT_REVOLUTIONS_PER_MINUTE, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "chlorinator_level":  {"unit": UNIT_PERCENT, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "chlorinator_salt":   {"unit": UNIT_PARTS_PER_MILLION, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_error": {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "chlorinator_error":  {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
 }
 CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.h
     "primary_pump_running",
     "mode_service",
     "mode_temperature_inc", 
     "mode_freeze_protection",
-    "mode_timeout"
+    "mode_timeout",
+    "chlorinator_low_flow",
+    "chlorinator_low_salt",
+    "chlorinator_high_salt",
+    "chlorinator_clean_cell",
+    "chlorinator_cold"
 ]
+CONF_NUMBERS = {  # keys are used to overwrite number_id_t enum in opnpool_ids.h
+    "chlorinator_level_set": {"min": 0, "max": 100, "step": 1, "unit": UNIT_PERCENT},
+}
 CONF_TEXT_SENSORS = [  # used to overwrite text_sensor_id_t enum in opnpool.h
     "pool_sched",
     "spa_sched",
@@ -118,14 +130,14 @@ CONF_TEXT_SENSORS = [  # used to overwrite text_sensor_id_t enum in opnpool.h
     "controller_type",
     "interface_firmware"
 ]
-
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(OpnPool),
     # RS485 settings (required, but with defaults)
     cv.Optional(CONF_RS485, default={}): cv.Schema({
         cv.Optional(CONF_RS485_TX_PIN, default=21): cv.int_,
         cv.Optional(CONF_RS485_RX_PIN, default=22): cv.int_,
-        cv.Optional(CONF_RS485_RTS_PIN, default=23): cv.int_,
+        cv.Optional(CONF_RS485_RTS_PIN, default=23): cv.int_range(min=-1, max=48),
+        cv.Optional(CONF_RS485_A5_VERSION, default=0x07): cv.int_range(min=0, max=255),
     }),
     # Matter over Thread settings (optional, disabled by default)
     # Requires ESP32-C6 or ESP32-H2 with Thread radio support
@@ -143,7 +155,8 @@ CONFIG_SCHEMA = cv.Schema({
     },
     **{
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): switch.switch_schema(OpnPoolSwitch).extend({
-            cv.GenerateID(): cv.declare_id(OpnPoolSwitch)
+            cv.GenerateID(): cv.declare_id(OpnPoolSwitch),
+            cv.Optional(CONF_CIRCUIT_PLUS_1): cv.int_range(min=1, max=16),
         }) for key in CONF_SWITCHES
     },
     **{
@@ -157,6 +170,11 @@ CONFIG_SCHEMA = cv.Schema({
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): binary_sensor.binary_sensor_schema(OpnPoolBinarySensor).extend({
             cv.GenerateID(): cv.declare_id(OpnPoolBinarySensor)
         }) for key in CONF_BINARY_SENSORS
+    },
+    **{
+        cv.Optional(key, default={"name": key.replace("_", " ").title()}): number.number_schema(OpnPoolNumber, unit_of_measurement=CONF_NUMBERS[key]["unit"]).extend({
+            cv.GenerateID(): cv.declare_id(OpnPoolNumber),
+        }) for key in CONF_NUMBERS
     },
     **{
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): text_sensor.text_sensor_schema(OpnPoolTextSensor).extend({
@@ -251,7 +269,12 @@ async def to_code(config):
     
     # RS485 configuration
     rs485_config = config[CONF_RS485]
-    cg.add(var.set_rs485_pins(rs485_config[CONF_RS485_RX_PIN], rs485_config[CONF_RS485_TX_PIN], rs485_config[CONF_RS485_RTS_PIN]))
+    cg.add(var.set_rs485_pins(
+        rs485_config[CONF_RS485_RX_PIN],
+        rs485_config[CONF_RS485_TX_PIN],
+        rs485_config[CONF_RS485_RTS_PIN],
+        rs485_config[CONF_RS485_A5_VERSION],
+    ))
 
     # matter over Thread configuration
     matter_config = config[CONF_MATTER]
@@ -290,6 +313,8 @@ async def to_code(config):
             entity_cfg[CONF_ID] = cg.new_id()
         switch_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, id)
         await switch.register_switch(switch_entity, entity_cfg)
+        if CONF_CIRCUIT_PLUS_1 in entity_cfg:
+            cg.add(switch_entity.set_circuit_plus_1_override(entity_cfg[CONF_CIRCUIT_PLUS_1]))
         cg.add(getattr(var, f"set_{switch_key}_switch")(switch_entity))
 
     # register analog sensors (constructor injection)
@@ -300,6 +325,19 @@ async def to_code(config):
         sensor_entity = cg.new_Pvariable(entity_cfg[CONF_ID])
         await sensor.register_sensor(sensor_entity, entity_cfg)
         cg.add(getattr(var, f"set_{sensor_key}_sensor")(sensor_entity))
+
+    # register numbers (constructor injection)
+    for id, number_key in enumerate(CONF_NUMBERS):
+        entity_cfg = config[number_key]
+        if CONF_ID not in entity_cfg:
+            entity_cfg[CONF_ID] = cg.new_id()
+        number_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, id)
+        limits = CONF_NUMBERS[number_key]
+        await number.register_number(
+            number_entity, entity_cfg,
+            min_value=limits["min"], max_value=limits["max"], step=limits["step"],
+        )
+        cg.add(getattr(var, f"set_{number_key}_number")(number_entity))
 
     # register binary sensors (constructor injection)
     for id, binary_sensor_key in enumerate(CONF_BINARY_SENSORS):
@@ -327,6 +365,7 @@ ENTITY_ENUMS = {
     "sensor_id_t":        CONF_ANALOG_SENSORS,
     "binary_sensor_id_t": CONF_BINARY_SENSORS,
     "text_sensor_id_t":   CONF_TEXT_SENSORS,
+    "number_id_t":        list(CONF_NUMBERS),
 }
 
 def generate_enum(enum_name, items):

@@ -44,13 +44,15 @@ class OpnPoolClimate;
 class OpnPoolSwitch;
 class OpnPoolSensor;
 class OpnPoolBinarySensor;
+class OpnPoolNumber;
 class OpnPoolTextSensor;
 
 /// @brief RS-485 GPIO pin configuration.
 struct rs485_pins_t {
     uint8_t rx_pin{21};   ///< Receive pin GPIO number.
     uint8_t tx_pin{22};   ///< Transmit pin GPIO number.
-    uint8_t rts_pin{23};  ///< Direction control (RTS) pin GPIO number.
+    int8_t rts_pin{23};   ///< Direction control (RTS) pin GPIO number, or -1 to disable manual DE/RE control.
+    uint8_t a5_version{0x07};  ///< A5 header version byte used for transmitted controller packets.
 };
 
 /**
@@ -70,7 +72,7 @@ class OpnPool : public Component {
     ~OpnPool();                 ///< Cleans up resources.
 
     // ========== RS-485 Configuration ==========
-    void set_rs485_pins(uint8_t rx_pin, uint8_t tx_pin, uint8_t rts_pin);
+    void set_rs485_pins(uint8_t rx_pin, uint8_t tx_pin, int8_t rts_pin, uint8_t a5_version);
 
     // ========== Climate Setters ==========
     void set_pool_climate(OpnPoolClimate * const climate);
@@ -94,6 +96,8 @@ class OpnPool : public Component {
     void set_primary_pump_flow_sensor(OpnPoolSensor * const s);
     void set_primary_pump_speed_sensor(OpnPoolSensor * const s);
     void set_primary_pump_error_sensor(OpnPoolSensor * const s);
+    void set_chlorinator_error_sensor(OpnPoolSensor * const s);
+    void set_chlorinator_level_set_number(OpnPoolNumber * const n);
     void set_chlorinator_level_sensor(OpnPoolSensor * const s);
     void set_chlorinator_salt_sensor(OpnPoolSensor * const s);
 
@@ -103,6 +107,11 @@ class OpnPool : public Component {
     void set_mode_temperature_inc_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_mode_freeze_protection_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_mode_timeout_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_low_flow_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_clean_cell_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_cold_binary_sensor(OpnPoolBinarySensor * const bs);
 
     // ========== Text Sensor Setters ==========
     void set_pool_sched_text_sensor(OpnPoolTextSensor * const ts);
@@ -135,6 +144,7 @@ class OpnPool : public Component {
     void update_text_sensors(poolstate_t const * const state);
     void update_analog_sensors(poolstate_t const * const state);
     void update_binary_sensors(poolstate_t const * const state);
+    void update_numbers(poolstate_t const * const state);
     void update_all(poolstate_t const * const state);
 
     // ========== Accessors ==========
@@ -153,6 +163,7 @@ class OpnPool : public Component {
     OpnPoolSwitch * switches_[enum_count<switch_id_t>()]{nullptr};                ///< Switch entity pointers.
     OpnPoolSensor * sensors_[enum_count<sensor_id_t>()]{nullptr};                 ///< Sensor entity pointers.
     OpnPoolBinarySensor * binary_sensors_[enum_count<binary_sensor_id_t>()]{nullptr}; ///< Binary sensor pointers.
+    OpnPoolNumber * numbers_[enum_count<number_id_t>()]{nullptr};                 ///< Number entity pointers.
     OpnPoolTextSensor * text_sensors_[enum_count<text_sensor_id_t>()]{nullptr};   ///< Text sensor pointers.
 
 #ifdef USE_MATTER

@@ -58,7 +58,8 @@ enum class sensor_id_t : uint8_t {
     PRIMARY_PUMP_SPEED = 4,  ///< Primary pump speed (RPM) sensor.
     CHLORINATOR_LEVEL  = 5,  ///< Chlorinator output level sensor.
     CHLORINATOR_SALT   = 6,  ///< Chlorinator salt level sensor.
-    PRIMARY_PUMP_ERROR = 7   ///< Primary pump error code sensor.
+    PRIMARY_PUMP_ERROR = 7,  ///< Primary pump error code sensor.
+    CHLORINATOR_ERROR  = 8   ///< Salt cell raw error byte (all bits, for debugging).
 };
 
     /// @brief Binary sensor entity identifiers for pool status indicators.
@@ -67,7 +68,17 @@ enum class binary_sensor_id_t : uint8_t {
     MODE_SERVICE           = 1,  ///< Service mode active indicator.
     MODE_TEMPERATURE_INC   = 2,  ///< Temperature increase mode indicator.
     MODE_FREEZE_PROTECTION = 3,  ///< Freeze protection mode active indicator.
-    MODE_TIMEOUT           = 4   ///< Timeout mode active indicator.
+    MODE_TIMEOUT           = 4,  ///< Timeout mode active indicator.
+    CHLORINATOR_LOW_FLOW   = 5,  ///< Salt cell error bit 0x01: flow switch, low or no flow.
+    CHLORINATOR_LOW_SALT   = 6,  ///< Salt cell error bit 0x02: low salt.
+    CHLORINATOR_HIGH_SALT  = 7,  ///< Salt cell error bit 0x04: high salt.
+    CHLORINATOR_CLEAN_CELL = 8,  ///< Salt cell error bit 0x10: clean cell.
+    CHLORINATOR_COLD       = 9   ///< Salt cell error bit 0x40: water too cold.
+};
+
+    /// @brief Number entity identifiers for pool numeric controls.
+enum class number_id_t : uint8_t {
+    CHLORINATOR_LEVEL_SET = 0  ///< Salt cell pool output setpoint (percent).
 };
 
     /// @brief Text sensor entity identifiers for pool status strings.
@@ -98,6 +109,22 @@ enum class text_sensor_id_t : uint8_t {
  * @return       The corresponding network_pool_circuit_t value.
  */
 [[nodiscard]] network_pool_circuit_t switch_id_to_network_circuit(switch_id_t const id);
+
+/**
+ * @brief Returns the configured Pentair circuit number (1-based) for a switch entity.
+ *
+ * @param[in] id The switch entity ID.
+ * @return       The configured circuit_plus_1 value.
+ */
+[[nodiscard]] uint8_t switch_id_to_circuit_plus_1(switch_id_t const id);
+
+/**
+ * @brief Overrides the Pentair circuit number (1-based) for a switch entity.
+ *
+ * @param[in] id             The switch entity ID.
+ * @param[in] circuit_plus_1 The 1-based Pentair circuit number.
+ */
+void set_switch_circuit_plus_1_override(switch_id_t const id, uint8_t const circuit_plus_1);
 
 } // namespace opnpool
 } // namespace esphome

@@ -53,6 +53,7 @@ class OpnPoolSwitch : public switch_::Switch, public Component {
      * higher to see output.
      */
     void dump_config();
+    void set_circuit_plus_1_override(uint8_t const circuit_plus_1);
 
     /**
      * @brief Handles switch state changes triggered by Home Assistant.
@@ -72,6 +73,7 @@ class OpnPoolSwitch : public switch_::Switch, public Component {
     OpnPool * const              parent_;   ///< Parent OpnPool component.
     switch_id_t const            id_;       ///< Switch entity ID.
     network_pool_circuit_t const circuit_ = switch_id_to_network_circuit(id_);  ///< Mapped circuit type.
+    uint8_t                      circuit_plus_1_override_{0};  ///< Optional 1-based Pentair circuit number override.
 
     /// @brief Tracks the last published state to avoid redundant updates.
     struct last_t {

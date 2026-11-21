@@ -47,6 +47,7 @@
 #include "entities/opnpool_switch.h"
 #include "entities/opnpool_sensor.h"
 #include "entities/opnpool_binary_sensor.h"
+#include "entities/opnpool_number.h"
 #include "entities/opnpool_text_sensor.h"
 #include "opnpool_ids.h"
 #include "pool_task/network.h"
@@ -189,6 +190,51 @@ _publish_version_if(OpnPoolTextSensor * const sensor, poolstate_system_t const *
         static char fw_str[18];  // 2.80\0
         snprintf(fw_str, sizeof(fw_str), "%s %d.%d", system->addr.value.to_str(), system->version.major, system->version.minor);
         sensor->publish_value_if_changed(fw_str);
+    }
+}
+
+/**
+ * @brief Human-readable salt cell status for the chlorinator status text sensor.
+ */
+static char const *
+_chlor_status_text(poolstate_chlor_status_typ_t const status)
+{
+    switch (status) {
+        case poolstate_chlor_status_typ_t::OK:         return "OK";
+        case poolstate_chlor_status_typ_t::LOW_FLOW:   return "Low flow";
+        case poolstate_chlor_status_typ_t::LOW_SALT:   return "Low salt";
+        case poolstate_chlor_status_typ_t::HIGH_SALT:  return "High salt";
+        case poolstate_chlor_status_typ_t::CLEAN_CELL: return "Clean cell";
+        case poolstate_chlor_status_typ_t::COLD:       return "Cold";
+        default:                                       return "Other";
+    }
+}
+
+/**
+ * @brief Publishes one binary sensor per salt cell error bit (each bit straight from LEVEL_RESP).
+ *
+ * @param[in] sensors Array of binary sensor pointers.
+ * @param[in] error   The raw error byte wrapper (must have .valid and .value members).
+ */
+static void
+_publish_chlor_error_bits_if(OpnPoolBinarySensor * const * const sensors, poolstate_uint8_t const error)
+{
+    if (!error.valid) {
+        return;
+    }
+    using T = poolstate_chlor_status_typ_t;
+    struct { binary_sensor_id_t id; T bit; } const map[] = {
+        { binary_sensor_id_t::CHLORINATOR_LOW_FLOW,   T::LOW_FLOW   },
+        { binary_sensor_id_t::CHLORINATOR_LOW_SALT,   T::LOW_SALT   },
+        { binary_sensor_id_t::CHLORINATOR_HIGH_SALT,  T::HIGH_SALT  },
+        { binary_sensor_id_t::CHLORINATOR_CLEAN_CELL, T::CLEAN_CELL },
+        { binary_sensor_id_t::CHLORINATOR_COLD,       T::COLD       },
+    };
+    for (auto const & m : map) {
+        auto * const bs = sensors[enum_index(m.id)];
+        if (bs != nullptr) {
+            bs->publish_value_if_changed((error.value & static_cast<uint8_t>(m.bit)) != 0);
+        }
     }
 }
 
@@ -371,11 +417,18 @@ OpnPool::loop() {
         poolState_->get(&new_state);
 
         if (msg.src.is_controller()) {
-            new_state.system.addr = {
-                .valid = true,
-                .value = msg.src
-            };
-            ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+            bool const should_learn =
+                !new_state.system.addr.valid ||
+                !new_state.system.addr.value.is_controller() ||
+                (new_state.system.addr.value.addr != datalink_addr_t::SUNTOUCH_CONTROLLER &&
+                 msg.src.addr == datalink_addr_t::SUNTOUCH_CONTROLLER);
+            if (should_learn) {
+                new_state.system.addr = {
+                    .valid = true,
+                    .value = msg.src
+                };
+                ESP_LOGV(TAG, "learned controller address: 0x%02X", msg.src.addr);
+            }
         }
 
         if (poolstate_rx::update_state(&msg, &new_state) == ESP_OK) {
@@ -384,12 +437,13 @@ OpnPool::loop() {
 
                 poolState_->set(&new_state);
 
-                    // publish this as an update to the HA sensors 
+                    // publish this as an update to the HA sensors
                 this->update_climates(&new_state);
                 this->update_switches(&new_state);
                 this->update_text_sensors(&new_state);
                 this->update_analog_sensors(&new_state);
                 this->update_binary_sensors(&new_state);
+                this->update_numbers(&new_state);
             }
  
             ESP_LOGVV(TAG, "FYI Poolstate changed");
@@ -430,7 +484,12 @@ OpnPool::dump_config() {
     ESP_LOGCONFIG(TAG, "OpnPool:");
     ESP_LOGCONFIG(TAG, "  RS485 rx pin: %u", this->ipc_->config.rs485_pins.rx_pin);
     ESP_LOGCONFIG(TAG, "  RS485 tx pin: %u", this->ipc_->config.rs485_pins.tx_pin);
-    ESP_LOGCONFIG(TAG, "  RS485 rts pin: %u", this->ipc_->config.rs485_pins.rts_pin);
+    if (this->ipc_->config.rs485_pins.rts_pin < 0) {
+        ESP_LOGCONFIG(TAG, "  RS485 rts pin: disabled");
+    } else {
+        ESP_LOGCONFIG(TAG, "  RS485 rts pin: %d", this->ipc_->config.rs485_pins.rts_pin);
+    }
+    ESP_LOGCONFIG(TAG, "  RS485 A5 version: 0x%02X", this->ipc_->config.rs485_pins.a5_version);
 
     for (auto idx : magic_enum::enum_values<climate_id_t>()) {
         _dump_if(this->climates_[enum_index(idx)]);
@@ -443,6 +502,9 @@ OpnPool::dump_config() {
     }
     for (auto idx : magic_enum::enum_values<binary_sensor_id_t>()) {
         _dump_if(this->binary_sensors_[enum_index(idx)]);
+    }
+    for (auto idx : magic_enum::enum_values<number_id_t>()) {
+        _dump_if(this->numbers_[enum_index(idx)]);
     }
     for (auto idx : magic_enum::enum_values<text_sensor_id_t>()) {
         if (idx != text_sensor_id_t::INTERFACE_FIRMWARE) {
@@ -569,6 +631,10 @@ OpnPool::update_analog_sensors(poolstate_t const * const state)
         this->sensors_[enum_index(sensor_id_t::CHLORINATOR_SALT)],  
         state->chlor.salt
     );
+    _publish_if(
+        this->sensors_[enum_index(sensor_id_t::CHLORINATOR_ERROR)],
+        state->chlor.error
+    );
 }
 
 /**
@@ -587,6 +653,19 @@ OpnPool::update_binary_sensors(poolstate_t const * const state)
     _publish_modes_if(
         this->binary_sensors_,
         state->system.modes);
+    _publish_chlor_error_bits_if(this->binary_sensors_, state->chlor.error);
+}
+
+/**
+ * @brief Updates number entities with current pool state (the controller's confirmed values).
+ */
+void
+OpnPool::update_numbers(poolstate_t const * const state)
+{
+    OpnPoolNumber * const level = this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)];
+    if (level != nullptr && state->chlor.setpt_pool.valid) {
+        level->publish_value_if_changed(static_cast<float>(state->chlor.setpt_pool.value));
+    }
 }
 
 /**
@@ -617,10 +696,10 @@ OpnPool::update_text_sensors(poolstate_t const * const state)
         this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_NAME)], 
         state->chlor.name
     );
-    _publish_enum_if(
-        this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)],
-        state->chlor.status
-    );
+    if (this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)] != nullptr && state->chlor.status.valid) {
+        this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)]->publish_value_if_changed(
+            _chlor_status_text(state->chlor.status.value));
+    }
     _publish_date_and_time_if(
         this->text_sensors_[enum_index(text_sensor_id_t::SYSTEM_TIME)],
         &state->system.tod
@@ -643,11 +722,12 @@ OpnPool::update_text_sensors(poolstate_t const * const state)
  * @param[in] rts_pin GPIO pin for RS-485 direction control.
  */
 void
-OpnPool::set_rs485_pins(uint8_t const rx_pin, uint8_t const tx_pin, uint8_t const rts_pin)
+OpnPool::set_rs485_pins(uint8_t const rx_pin, uint8_t const tx_pin, int8_t const rts_pin, uint8_t const a5_version)
 {
     rs485_pins_.rx_pin = rx_pin;
     rs485_pins_.tx_pin = tx_pin;
     rs485_pins_.rts_pin = rts_pin;
+    rs485_pins_.a5_version = a5_version;
 }
 
 void
@@ -753,6 +833,18 @@ OpnPool::set_primary_pump_error_sensor(OpnPoolSensor * const s)
 }
 
 void
+OpnPool::set_chlorinator_level_set_number(OpnPoolNumber * const n)
+{
+    this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)] = n;
+}
+
+void
+OpnPool::set_chlorinator_error_sensor(OpnPoolSensor * const s)
+{
+    this->sensors_[enum_index(sensor_id_t::CHLORINATOR_ERROR)] = s;
+}
+
+void
 OpnPool::set_chlorinator_level_sensor(OpnPoolSensor * const s)
 { 
     this->sensors_[enum_index(sensor_id_t::CHLORINATOR_LEVEL)] = s; 
@@ -792,6 +884,36 @@ void
 OpnPool::set_mode_timeout_binary_sensor(OpnPoolBinarySensor * const bs)
 { 
     this->binary_sensors_[enum_index(binary_sensor_id_t::MODE_TIMEOUT)] = bs; 
+}
+
+void
+OpnPool::set_chlorinator_low_flow_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_LOW_FLOW)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_LOW_SALT)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_HIGH_SALT)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_clean_cell_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_CLEAN_CELL)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_cold_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_COLD)] = bs;
 }
 
 void
