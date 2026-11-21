@@ -927,6 +927,9 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
         .valid = true,
         .value = msg->error
     };
+    ESP_LOGD("opnpool_chlor", "LEVEL_RESP: salt=%u ppm (raw %u) error=0x%02X [flow=%d low_salt=%d high_salt=%d clean=%d cold=%d]",
+             chlor->salt.value, msg->salt, msg->error,
+             !!(msg->error & 0x01), !!(msg->error & 0x02), !!(msg->error & 0x04), !!(msg->error & 0x10), !!(msg->error & 0x40));
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_chlor_resp(dbg, poolstate_rx_log::KEY_CHLOR, chlor);

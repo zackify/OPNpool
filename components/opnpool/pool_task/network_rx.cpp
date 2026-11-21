@@ -34,6 +34,19 @@ namespace esphome {
 namespace opnpool {
 
 constexpr char TAG[] = "network_rx";
+constexpr char CHLOR_TAG[] = "opnpool_chlor";  ///< debug tag for salt cell traffic; enable with logger: logs: opnpool_chlor: DEBUG
+
+/// Logs every IC (salt cell) packet seen on the bus, including ones we ignore, as hex.
+static void
+_log_ic_pkt(datalink_pkt_t const * const pkt)
+{
+    char hex[3 * 16 + 1] = {0};
+    size_t const n = pkt->data_len < 16 ? pkt->data_len : 16;
+    for (size_t ii = 0; ii < n; ii++) {
+        snprintf(hex + 3 * ii, 4, "%02X ", pkt->data[ii]);
+    }
+    ESP_LOGD(CHLOR_TAG, "IC pkt: dst=0x%02X typ=0x%02X len=%u data=[%s]", pkt->dst.addr, pkt->typ.raw, pkt->data_len, hex);
+}
 
 /**
  * @brief          Decode an A5_PUMP datalink packet to form a network message.
@@ -167,8 +180,12 @@ network_rx_msg(datalink_pkt_t const * const pkt, network_msg_t * const msg, bool
 
         // silently ignore packets that we don't know how to decode
     datalink_addr_t const dst = pkt->dst;
+    if (pkt->prot == datalink_prot_t::IC) {
+        _log_ic_pkt(pkt);
+    }
+        // IC replies from the salt cell (LEVEL_RESP, MODEL_RESP) are addressed to 0x00 (ALL), so keep those too
     if ((pkt->prot == datalink_prot_t::A5_CTRL && dst.is_unknown_90()) ||
-        (pkt->prot == datalink_prot_t::IC && !dst.is_broadcast() && !dst.is_chlorinator() )) {
+        (pkt->prot == datalink_prot_t::IC && dst.addr != datalink_addr_t::ALL && !dst.is_broadcast() && !dst.is_chlorinator() )) {
 
         *txOpportunity = false;
         msg->typ = network_msg_typ_t::IGNORE;

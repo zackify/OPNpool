@@ -58,7 +58,8 @@ enum class sensor_id_t : uint8_t {
     PRIMARY_PUMP_SPEED = 4,  ///< Primary pump speed (RPM) sensor.
     CHLORINATOR_LEVEL  = 5,  ///< Chlorinator output level sensor.
     CHLORINATOR_SALT   = 6,  ///< Chlorinator salt level sensor.
-    PRIMARY_PUMP_ERROR = 7   ///< Primary pump error code sensor.
+    PRIMARY_PUMP_ERROR = 7,  ///< Primary pump error code sensor.
+    CHLORINATOR_ERROR  = 8   ///< Salt cell raw error byte (all bits, for debugging).
 };
 
     /// @brief Binary sensor entity identifiers for pool status indicators.

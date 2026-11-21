@@ -626,6 +626,10 @@ OpnPool::update_analog_sensors(poolstate_t const * const state)
         this->sensors_[enum_index(sensor_id_t::CHLORINATOR_SALT)],  
         state->chlor.salt
     );
+    _publish_if(
+        this->sensors_[enum_index(sensor_id_t::CHLORINATOR_ERROR)],
+        state->chlor.error
+    );
 }
 
 /**
@@ -809,6 +813,12 @@ void
 OpnPool::set_primary_pump_error_sensor(OpnPoolSensor * const s)
 { 
     this->sensors_[enum_index(sensor_id_t::PRIMARY_PUMP_ERROR)] = s; 
+}
+
+void
+OpnPool::set_chlorinator_error_sensor(OpnPoolSensor * const s)
+{
+    this->sensors_[enum_index(sensor_id_t::CHLORINATOR_ERROR)] = s;
 }
 
 void

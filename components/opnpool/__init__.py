@@ -101,6 +101,7 @@ CONF_ANALOG_SENSORS = { # keys are used to overwrite sensor_id_t enum in opnpool
     "chlorinator_level":  {"unit": UNIT_PERCENT, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "chlorinator_salt":   {"unit": UNIT_PARTS_PER_MILLION, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_error": {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "chlorinator_error":  {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
 }
 CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.h
     "primary_pump_running",

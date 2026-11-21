@@ -95,6 +95,7 @@ class OpnPool : public Component {
     void set_primary_pump_flow_sensor(OpnPoolSensor * const s);
     void set_primary_pump_speed_sensor(OpnPoolSensor * const s);
     void set_primary_pump_error_sensor(OpnPoolSensor * const s);
+    void set_chlorinator_error_sensor(OpnPoolSensor * const s);
     void set_chlorinator_level_sensor(OpnPoolSensor * const s);
     void set_chlorinator_salt_sensor(OpnPoolSensor * const s);
 
