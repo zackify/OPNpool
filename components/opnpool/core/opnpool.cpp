@@ -193,6 +193,51 @@ _publish_version_if(OpnPoolTextSensor * const sensor, poolstate_system_t const *
 }
 
 /**
+ * @brief Human-readable salt cell status for the chlorinator status text sensor.
+ */
+static char const *
+_chlor_status_text(poolstate_chlor_status_typ_t const status)
+{
+    switch (status) {
+        case poolstate_chlor_status_typ_t::OK:         return "OK";
+        case poolstate_chlor_status_typ_t::LOW_FLOW:   return "Low flow";
+        case poolstate_chlor_status_typ_t::LOW_SALT:   return "Low salt";
+        case poolstate_chlor_status_typ_t::HIGH_SALT:  return "High salt";
+        case poolstate_chlor_status_typ_t::CLEAN_CELL: return "Clean cell";
+        case poolstate_chlor_status_typ_t::COLD:       return "Cold";
+        default:                                       return "Other";
+    }
+}
+
+/**
+ * @brief Publishes one binary sensor per salt cell error bit (each bit straight from LEVEL_RESP).
+ *
+ * @param[in] sensors Array of binary sensor pointers.
+ * @param[in] error   The raw error byte wrapper (must have .valid and .value members).
+ */
+static void
+_publish_chlor_error_bits_if(OpnPoolBinarySensor * const * const sensors, poolstate_uint8_t const error)
+{
+    if (!error.valid) {
+        return;
+    }
+    using T = poolstate_chlor_status_typ_t;
+    struct { binary_sensor_id_t id; T bit; } const map[] = {
+        { binary_sensor_id_t::CHLORINATOR_LOW_FLOW,   T::LOW_FLOW   },
+        { binary_sensor_id_t::CHLORINATOR_LOW_SALT,   T::LOW_SALT   },
+        { binary_sensor_id_t::CHLORINATOR_HIGH_SALT,  T::HIGH_SALT  },
+        { binary_sensor_id_t::CHLORINATOR_CLEAN_CELL, T::CLEAN_CELL },
+        { binary_sensor_id_t::CHLORINATOR_COLD,       T::COLD       },
+    };
+    for (auto const & m : map) {
+        auto * const bs = sensors[enum_index(m.id)];
+        if (bs != nullptr) {
+            bs->publish_value_if_changed((error.value & static_cast<uint8_t>(m.bit)) != 0);
+        }
+    }
+}
+
+/**
  * @brief Publishes the four mode binary sensors if present and valid.
  *
  * @param[in] sensors Array of binary sensor pointers.
@@ -599,6 +644,7 @@ OpnPool::update_binary_sensors(poolstate_t const * const state)
     _publish_modes_if(
         this->binary_sensors_,
         state->system.modes);
+    _publish_chlor_error_bits_if(this->binary_sensors_, state->chlor.error);
 }
 
 /**
@@ -629,10 +675,10 @@ OpnPool::update_text_sensors(poolstate_t const * const state)
         this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_NAME)], 
         state->chlor.name
     );
-    _publish_enum_if(
-        this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)],
-        state->chlor.status
-    );
+    if (this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)] != nullptr && state->chlor.status.valid) {
+        this->text_sensors_[enum_index(text_sensor_id_t::CHLORINATOR_STATUS)]->publish_value_if_changed(
+            _chlor_status_text(state->chlor.status.value));
+    }
     _publish_date_and_time_if(
         this->text_sensors_[enum_index(text_sensor_id_t::SYSTEM_TIME)],
         &state->system.tod
@@ -805,6 +851,36 @@ void
 OpnPool::set_mode_timeout_binary_sensor(OpnPoolBinarySensor * const bs)
 { 
     this->binary_sensors_[enum_index(binary_sensor_id_t::MODE_TIMEOUT)] = bs; 
+}
+
+void
+OpnPool::set_chlorinator_low_flow_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_LOW_FLOW)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_LOW_SALT)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_HIGH_SALT)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_clean_cell_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_CLEAN_CELL)] = bs;
+}
+
+void
+OpnPool::set_chlorinator_cold_binary_sensor(OpnPoolBinarySensor * const bs)
+{
+    this->binary_sensors_[enum_index(binary_sensor_id_t::CHLORINATOR_COLD)] = bs;
 }
 
 void

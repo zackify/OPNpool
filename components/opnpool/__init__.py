@@ -107,7 +107,12 @@ CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.
     "mode_service",
     "mode_temperature_inc", 
     "mode_freeze_protection",
-    "mode_timeout"
+    "mode_timeout",
+    "chlorinator_low_flow",
+    "chlorinator_low_salt",
+    "chlorinator_high_salt",
+    "chlorinator_clean_cell",
+    "chlorinator_cold"
 ]
 CONF_TEXT_SENSORS = [  # used to overwrite text_sensor_id_t enum in opnpool.h
     "pool_sched",

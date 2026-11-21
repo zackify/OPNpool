@@ -265,6 +265,7 @@ struct poolstate_chlor_t {
     poolstate_uint8_t        level;   ///< Chlorination level percentage (from chlor_level_set).
     poolstate_uint16_t       salt;    ///< Salt level in PPM (from chlor_level_resp, chlor_name_resp).
     poolstate_chlor_status_t status;  ///< Status/error flags (from chlor_level_resp).
+    poolstate_uint8_t        error;   ///< Raw error bits from the cell (from chlor_level_resp); see poolstate_chlor_status_typ_t.
 };
 
 /// @}

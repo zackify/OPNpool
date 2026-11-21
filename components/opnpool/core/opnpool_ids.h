@@ -67,7 +67,12 @@ enum class binary_sensor_id_t : uint8_t {
     MODE_SERVICE           = 1,  ///< Service mode active indicator.
     MODE_TEMPERATURE_INC   = 2,  ///< Temperature increase mode indicator.
     MODE_FREEZE_PROTECTION = 3,  ///< Freeze protection mode active indicator.
-    MODE_TIMEOUT           = 4   ///< Timeout mode active indicator.
+    MODE_TIMEOUT           = 4,  ///< Timeout mode active indicator.
+    CHLORINATOR_LOW_FLOW   = 5,  ///< Salt cell error bit 0x01: flow switch, low or no flow.
+    CHLORINATOR_LOW_SALT   = 6,  ///< Salt cell error bit 0x02: low salt.
+    CHLORINATOR_HIGH_SALT  = 7,  ///< Salt cell error bit 0x04: high salt.
+    CHLORINATOR_CLEAN_CELL = 8,  ///< Salt cell error bit 0x10: clean cell.
+    CHLORINATOR_COLD       = 9   ///< Salt cell error bit 0x40: water too cold.
 };
 
     /// @brief Text sensor entity identifiers for pool status strings.

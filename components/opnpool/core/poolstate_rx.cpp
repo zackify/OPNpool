@@ -803,6 +803,8 @@ _get_chlor_status_from_error(uint8_t const error)
 {
     using T = poolstate_chlor_status_typ_t;
 
+    if (error == 0) return T::OK;  // cell reports no error bits
+
     if (error & static_cast<uint8_t>(T::LOW_FLOW))   return T::LOW_FLOW;
     if (error & static_cast<uint8_t>(T::LOW_SALT))   return T::LOW_SALT;
     if (error & static_cast<uint8_t>(T::HIGH_SALT))  return T::HIGH_SALT;
@@ -920,7 +922,11 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
     chlor->status = {
         .valid = true,
         .value = _get_chlor_status_from_error(msg->error)
-    };  
+    };
+    chlor->error = {
+        .valid = true,
+        .value = msg->error
+    };
 
     if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE) {
         poolstate_rx_log::add_chlor_resp(dbg, poolstate_rx_log::KEY_CHLOR, chlor);

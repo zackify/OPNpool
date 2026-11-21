@@ -104,6 +104,11 @@ class OpnPool : public Component {
     void set_mode_temperature_inc_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_mode_freeze_protection_binary_sensor(OpnPoolBinarySensor * const bs);
     void set_mode_timeout_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_low_flow_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_low_salt_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_high_salt_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_clean_cell_binary_sensor(OpnPoolBinarySensor * const bs);
+    void set_chlorinator_cold_binary_sensor(OpnPoolBinarySensor * const bs);
 
     // ========== Text Sensor Setters ==========
     void set_pool_sched_text_sensor(OpnPoolTextSensor * const ts);
