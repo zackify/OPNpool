@@ -47,6 +47,7 @@
 #include "entities/opnpool_switch.h"
 #include "entities/opnpool_sensor.h"
 #include "entities/opnpool_binary_sensor.h"
+#include "entities/opnpool_number.h"
 #include "entities/opnpool_text_sensor.h"
 #include "opnpool_ids.h"
 #include "pool_task/network.h"
@@ -442,6 +443,7 @@ OpnPool::loop() {
                 this->update_text_sensors(&new_state);
                 this->update_analog_sensors(&new_state);
                 this->update_binary_sensors(&new_state);
+                this->update_numbers(&new_state);
             }
  
             ESP_LOGVV(TAG, "FYI Poolstate changed");
@@ -500,6 +502,9 @@ OpnPool::dump_config() {
     }
     for (auto idx : magic_enum::enum_values<binary_sensor_id_t>()) {
         _dump_if(this->binary_sensors_[enum_index(idx)]);
+    }
+    for (auto idx : magic_enum::enum_values<number_id_t>()) {
+        _dump_if(this->numbers_[enum_index(idx)]);
     }
     for (auto idx : magic_enum::enum_values<text_sensor_id_t>()) {
         if (idx != text_sensor_id_t::INTERFACE_FIRMWARE) {
@@ -649,6 +654,18 @@ OpnPool::update_binary_sensors(poolstate_t const * const state)
         this->binary_sensors_,
         state->system.modes);
     _publish_chlor_error_bits_if(this->binary_sensors_, state->chlor.error);
+}
+
+/**
+ * @brief Updates number entities with current pool state (the controller's confirmed values).
+ */
+void
+OpnPool::update_numbers(poolstate_t const * const state)
+{
+    OpnPoolNumber * const level = this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)];
+    if (level != nullptr && state->chlor.setpt_pool.valid) {
+        level->publish_value_if_changed(static_cast<float>(state->chlor.setpt_pool.value));
+    }
 }
 
 /**
@@ -813,6 +830,12 @@ void
 OpnPool::set_primary_pump_error_sensor(OpnPoolSensor * const s)
 { 
     this->sensors_[enum_index(sensor_id_t::PRIMARY_PUMP_ERROR)] = s; 
+}
+
+void
+OpnPool::set_chlorinator_level_set_number(OpnPoolNumber * const n)
+{
+    this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)] = n;
 }
 
 void

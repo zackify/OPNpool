@@ -278,6 +278,7 @@ pool_req_task(void * rs485_void)
 
         _queue_req(rs485, network_msg_typ_t::CTRL_HEAT_REQ);
         _queue_req(rs485, network_msg_typ_t::CTRL_SCHED_REQ);
+        _queue_req(rs485, network_msg_typ_t::CTRL_CHLOR_REQ);  // salt cell setpoint + name (readback of what the remote/we set)
     }
 }
 

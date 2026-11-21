@@ -936,6 +936,30 @@ _chlor_level_set_resp(cJSON * const dbg, network_chlor_level_resp_t const * cons
     }
 }
 
+static void
+_ctrl_chlor_set(cJSON * const dbg, network_ctrl_chlor_set_t const * const msg, poolstate_chlor_t * const chlor)
+{
+    (void)dbg;
+    if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
+    chlor->setpt_spa  = { .valid = true, .value = msg->spa };
+    chlor->setpt_pool = { .valid = true, .value = msg->pool };
+    ESP_LOGD("opnpool_chlor", "CHLOR_SET: pool=%u%% spa_byte=0x%02X", msg->pool, msg->spa);
+}
+
+static void
+_ctrl_chlor_resp(cJSON * const dbg, network_ctrl_chlor_resp_t const * const msg, poolstate_chlor_t * const chlor)
+{
+    (void)dbg;
+    if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
+    chlor->setpt_spa  = { .valid = true, .value = msg->spa };
+    chlor->setpt_pool = { .valid = true, .value = msg->pool };
+    memcpy(chlor->name.value, msg->name, sizeof(msg->name));
+    chlor->name.value[sizeof(msg->name)] = '\0';
+    chlor->name.valid = true;
+    ESP_LOGD("opnpool_chlor", "CHLOR_RESP: pool=%u%% spa_byte=0x%02X flags=0x%02X salt=%u ppm status=0x%02X name=%s",
+             msg->pool, msg->spa, msg->flags, msg->salt * 50, msg->status, chlor->name.value);
+}
+
 /// @}
 
 /// @name Main Entry Point
@@ -1065,6 +1089,14 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
             _ctrl_hex_bytes(dbg, msg->u.raw, sizeof(network_ctrl_scheds_resp_t));
             break;
         case network_msg_typ_t::CTRL_CHEM_REQ:
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_REQ:
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_RESP:
+            _ctrl_chlor_resp(dbg, &msg->u.a5.ctrl_chlor_resp, &new_state->chlor);
+            break;
+        case network_msg_typ_t::CTRL_CHLOR_SET:
+            _ctrl_chlor_set(dbg, &msg->u.a5.ctrl_chlor_set, &new_state->chlor);
             break;
         case network_msg_typ_t::CHLOR_CONTROL_REQ:
             _chlor_control_req(dbg, &msg->u.ic.chlor_control_req);

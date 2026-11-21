@@ -96,6 +96,9 @@ enum class datalink_ctrl_typ_t : uint8_t {
     DELAY_REQ        = 0xE3,
     HEAT_SETPT_RESP  = 0x28,
     HEAT_SETPT_REQ   = 0xE8,
+    CHLOR_RESP       = 0x19,  ///< Controller: salt cell config (spa byte, pool %, salt, status, name)
+    CHLOR_SET        = 0x99,  ///< Set salt cell output: [spa byte, pool %, 0, 0]
+    CHLOR_REQ        = 0xD9,  ///< Request salt cell config (1 byte payload, 0x00)
     VERSION_RESP     = 0xFC,
     VERSION_REQ      = 0xFD
     // SPA_CTRL_REQ     = 0xD6,

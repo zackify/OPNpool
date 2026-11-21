@@ -76,6 +76,11 @@ enum class binary_sensor_id_t : uint8_t {
     CHLORINATOR_COLD       = 9   ///< Salt cell error bit 0x40: water too cold.
 };
 
+    /// @brief Number entity identifiers for pool numeric controls.
+enum class number_id_t : uint8_t {
+    CHLORINATOR_LEVEL_SET = 0  ///< Salt cell pool output setpoint (percent).
+};
+
     /// @brief Text sensor entity identifiers for pool status strings.
 enum class text_sensor_id_t : uint8_t {
     POOL_SCHED          = 0,  ///< Pool schedule information.

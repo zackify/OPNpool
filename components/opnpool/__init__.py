@@ -34,7 +34,7 @@ import re
 import subprocess
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import climate, switch, sensor, binary_sensor, text_sensor
+from esphome.components import climate, switch, sensor, binary_sensor, text_sensor, number
 from esphome.const import (
     CONF_ID,
     CONF_DEVICE_CLASS, DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_POWER, DEVICE_CLASS_VOLUME_FLOW_RATE, DEVICE_CLASS_EMPTY,
@@ -42,8 +42,8 @@ from esphome.const import (
     CONF_STATE_CLASS, STATE_CLASS_MEASUREMENT,
 )
 
-DEPENDENCIES = ["climate", "switch", "sensor", "binary_sensor", "text_sensor"]
-AUTO_LOAD = ["climate", "switch", "sensor", "binary_sensor", "text_sensor"]
+DEPENDENCIES = ["climate", "switch", "sensor", "binary_sensor", "text_sensor", "number"]
+AUTO_LOAD = ["climate", "switch", "sensor", "binary_sensor", "text_sensor", "number"]
 
 # namespace and class definitions
 opnpool_ns = cg.esphome_ns.namespace("opnpool")
@@ -51,6 +51,7 @@ OpnPool             = opnpool_ns.class_("OpnPool", cg.Component)
 OpnPoolClimate      = opnpool_ns.class_("OpnPoolClimate", climate.Climate, cg.Component)
 OpnPoolSwitch       = opnpool_ns.class_("OpnPoolSwitch", switch.Switch, cg.Component)
 OpnPoolSensor       = opnpool_ns.class_("OpnPoolSensor", sensor.Sensor, cg.Component)
+OpnPoolNumber       = opnpool_ns.class_("OpnPoolNumber", number.Number, cg.Component)
 OpnPoolBinarySensor = opnpool_ns.class_("OpnPoolBinarySensor", binary_sensor.BinarySensor, cg.Component)
 OpnPoolTextSensor   = opnpool_ns.class_("OpnPoolTextSensor", text_sensor.TextSensor, cg.Component)
 
@@ -115,6 +116,9 @@ CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.
     "chlorinator_clean_cell",
     "chlorinator_cold"
 ]
+CONF_NUMBERS = {  # keys are used to overwrite number_id_t enum in opnpool_ids.h
+    "chlorinator_level_set": {"min": 0, "max": 100, "step": 1, "unit": UNIT_PERCENT},
+}
 CONF_TEXT_SENSORS = [  # used to overwrite text_sensor_id_t enum in opnpool.h
     "pool_sched",
     "spa_sched",
@@ -166,6 +170,11 @@ CONFIG_SCHEMA = cv.Schema({
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): binary_sensor.binary_sensor_schema(OpnPoolBinarySensor).extend({
             cv.GenerateID(): cv.declare_id(OpnPoolBinarySensor)
         }) for key in CONF_BINARY_SENSORS
+    },
+    **{
+        cv.Optional(key, default={"name": key.replace("_", " ").title()}): number.number_schema(OpnPoolNumber, unit_of_measurement=CONF_NUMBERS[key]["unit"]).extend({
+            cv.GenerateID(): cv.declare_id(OpnPoolNumber),
+        }) for key in CONF_NUMBERS
     },
     **{
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): text_sensor.text_sensor_schema(OpnPoolTextSensor).extend({
@@ -317,6 +326,19 @@ async def to_code(config):
         await sensor.register_sensor(sensor_entity, entity_cfg)
         cg.add(getattr(var, f"set_{sensor_key}_sensor")(sensor_entity))
 
+    # register numbers (constructor injection)
+    for id, number_key in enumerate(CONF_NUMBERS):
+        entity_cfg = config[number_key]
+        if CONF_ID not in entity_cfg:
+            entity_cfg[CONF_ID] = cg.new_id()
+        number_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, id)
+        limits = CONF_NUMBERS[number_key]
+        await number.register_number(
+            number_entity, entity_cfg,
+            min_value=limits["min"], max_value=limits["max"], step=limits["step"],
+        )
+        cg.add(getattr(var, f"set_{number_key}_number")(number_entity))
+
     # register binary sensors (constructor injection)
     for id, binary_sensor_key in enumerate(CONF_BINARY_SENSORS):
         entity_cfg = config[binary_sensor_key]
@@ -343,6 +365,7 @@ ENTITY_ENUMS = {
     "sensor_id_t":        CONF_ANALOG_SENSORS,
     "binary_sensor_id_t": CONF_BINARY_SENSORS,
     "text_sensor_id_t":   CONF_TEXT_SENSORS,
+    "number_id_t":        list(CONF_NUMBERS),
 }
 
 def generate_enum(enum_name, items):
