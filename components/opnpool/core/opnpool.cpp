@@ -48,6 +48,7 @@
 #include "entities/opnpool_sensor.h"
 #include "entities/opnpool_binary_sensor.h"
 #include "entities/opnpool_number.h"
+#include "entities/opnpool_boost_switch.h"
 #include "entities/opnpool_text_sensor.h"
 #include "opnpool_ids.h"
 #include "pool_task/network.h"
@@ -503,6 +504,7 @@ OpnPool::dump_config() {
     for (auto idx : magic_enum::enum_values<binary_sensor_id_t>()) {
         _dump_if(this->binary_sensors_[enum_index(idx)]);
     }
+    _dump_if(this->boost_switch_);
     for (auto idx : magic_enum::enum_values<number_id_t>()) {
         _dump_if(this->numbers_[enum_index(idx)]);
     }
@@ -632,6 +634,10 @@ OpnPool::update_analog_sensors(poolstate_t const * const state)
         state->chlor.salt
     );
     _publish_if(
+        this->sensors_[enum_index(sensor_id_t::CHLORINATOR_BOOST_REMAINING)],
+        state->chlor.boost_hours
+    );
+    _publish_if(
         this->sensors_[enum_index(sensor_id_t::CHLORINATOR_ERROR)],
         state->chlor.error
     );
@@ -665,6 +671,19 @@ OpnPool::update_numbers(poolstate_t const * const state)
     OpnPoolNumber * const level = this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)];
     if (level != nullptr && state->chlor.setpt_pool.valid) {
         level->publish_value_if_changed(static_cast<float>(state->chlor.setpt_pool.value));
+    }
+
+    // boost: the hours number shows the hours remaining while boost is on, otherwise the hours the next boost will start with
+    if (state->chlor.boost_hours.valid) {
+        uint8_t const remaining = state->chlor.boost_hours.value;
+        if (remaining > 0) { this->boost_pending_hours_ = remaining; }
+        OpnPoolNumber * const hours = this->numbers_[enum_index(number_id_t::CHLORINATOR_BOOST_HOURS)];
+        if (hours != nullptr) {
+            hours->publish_value_if_changed(static_cast<float>(this->boost_pending_hours_));
+        }
+        if (this->boost_switch_ != nullptr) {
+            this->boost_switch_->publish_value_if_changed(remaining > 0);
+        }
     }
 }
 
@@ -836,6 +855,24 @@ void
 OpnPool::set_chlorinator_level_set_number(OpnPoolNumber * const n)
 {
     this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)] = n;
+}
+
+void
+OpnPool::set_chlorinator_boost_remaining_sensor(OpnPoolSensor * const s)
+{
+    this->sensors_[enum_index(sensor_id_t::CHLORINATOR_BOOST_REMAINING)] = s;
+}
+
+void
+OpnPool::set_chlorinator_boost_hours_number(OpnPoolNumber * const n)
+{
+    this->numbers_[enum_index(number_id_t::CHLORINATOR_BOOST_HOURS)] = n;
+}
+
+void
+OpnPool::set_chlorinator_boost_switch(OpnPoolBoostSwitch * const s)
+{
+    this->boost_switch_ = s;
 }
 
 void

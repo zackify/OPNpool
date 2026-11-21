@@ -953,7 +953,8 @@ _ctrl_chlor_set(cJSON * const dbg, network_ctrl_chlor_set_t const * const msg, p
     if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
     chlor->setpt_spa  = { .valid = true, .value = msg->spa };
     chlor->setpt_pool = { .valid = true, .value = msg->pool };
-    ESP_LOGD("opnpool_chlor", "CHLOR_SET: pool=%u%% spa_byte=0x%02X", msg->pool, msg->spa);
+    chlor->boost_hours = { .valid = true, .value = static_cast<uint8_t>((msg->boost & 0x80) ? (msg->boost & 0x7F) : 0) };
+    ESP_LOGD("opnpool_chlor", "CHLOR_SET: pool=%u%% spa_byte=0x%02X boost=0x%02X", msg->pool, msg->spa, msg->boost);
 }
 
 static void
@@ -963,11 +964,12 @@ _ctrl_chlor_resp(cJSON * const dbg, network_ctrl_chlor_resp_t const * const msg,
     if (!msg || !chlor) { ESP_LOGW(TAG, "null to %s", __func__); return; }
     chlor->setpt_spa  = { .valid = true, .value = msg->spa };
     chlor->setpt_pool = { .valid = true, .value = msg->pool };
+    chlor->boost_hours = { .valid = true, .value = msg->boost_hours };
     memcpy(chlor->name.value, msg->name, sizeof(msg->name));
     chlor->name.value[sizeof(msg->name)] = '\0';
     chlor->name.valid = true;
-    ESP_LOGD("opnpool_chlor", "CHLOR_RESP: pool=%u%% spa_byte=0x%02X flags=0x%02X salt=%u ppm status=0x%02X name=%s",
-             msg->pool, msg->spa, msg->flags, msg->salt * 50, msg->status, chlor->name.value);
+    ESP_LOGD("opnpool_chlor", "CHLOR_RESP: pool=%u%% spa_byte=0x%02X flags=0x%02X salt=%u ppm status=0x%02X boost_hours=%u name=%s",
+             msg->pool, msg->spa, msg->flags, msg->salt * 50, msg->status, msg->boost_hours, chlor->name.value);
 }
 
 /// @}

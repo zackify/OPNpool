@@ -59,7 +59,8 @@ enum class sensor_id_t : uint8_t {
     CHLORINATOR_LEVEL  = 5,  ///< Chlorinator output level sensor.
     CHLORINATOR_SALT   = 6,  ///< Chlorinator salt level sensor.
     PRIMARY_PUMP_ERROR = 7,  ///< Primary pump error code sensor.
-    CHLORINATOR_ERROR  = 8   ///< Salt cell raw error byte (all bits, for debugging).
+    CHLORINATOR_BOOST_REMAINING = 8,  ///< Super chlorinate hours remaining (0 = off).
+    CHLORINATOR_ERROR  = 9   ///< Salt cell raw error byte (all bits, for debugging).
 };
 
     /// @brief Binary sensor entity identifiers for pool status indicators.
@@ -78,7 +79,8 @@ enum class binary_sensor_id_t : uint8_t {
 
     /// @brief Number entity identifiers for pool numeric controls.
 enum class number_id_t : uint8_t {
-    CHLORINATOR_LEVEL_SET = 0  ///< Salt cell pool output setpoint (percent).
+    CHLORINATOR_LEVEL_SET = 0,  ///< Salt cell pool output setpoint (percent).
+    CHLORINATOR_BOOST_HOURS = 1  ///< Super chlorinate run hours (1..24); shows hours remaining while boost is on.
 };
 
     /// @brief Text sensor entity identifiers for pool status strings.

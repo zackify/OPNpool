@@ -270,7 +270,8 @@ struct network_ctrl_circ_names_resp_t {
 struct network_ctrl_chlor_set_t {
     uint8_t spa;         // spa setpoint byte (the remote changes it together with the pool %; we echo the current value)
     uint8_t pool;        // pool output percent, 0..100
-    uint8_t unknown[2];  // always 00 00
+    uint8_t boost;       // super chlorinate: 0x00 = off, 0x80 | hours (1..24) = on for that many hours
+    uint8_t unknown;     // always 00
 } PACK8;
 
 struct network_ctrl_chlor_req_t {
@@ -284,7 +285,7 @@ struct network_ctrl_chlor_resp_t {
     uint8_t flags;       // 0x81 observed
     uint8_t salt;        // ppm / 50
     uint8_t status;      // error/status bits (same as IC LEVEL_RESP)
-    uint8_t unknown_5;   // 0x00 observed
+    uint8_t boost_hours; // super chlorinate hours remaining, 0 = boost off
     char    name[16];    // e.g. "Intellichlor--40", not \0 terminated
 } PACK8;
 

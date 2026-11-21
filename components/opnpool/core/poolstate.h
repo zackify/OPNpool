@@ -267,6 +267,7 @@ struct poolstate_chlor_t {
     poolstate_chlor_status_t status;  ///< Status/error flags (from chlor_level_resp).
     poolstate_uint8_t        setpt_pool; ///< Pool output setpoint percent (from ctrl_chlor_resp / ctrl_chlor_set).
     poolstate_uint8_t        setpt_spa;  ///< Spa setpoint byte as the controller reports it (kept so a pool-only change can echo it).
+    poolstate_uint8_t        boost_hours; ///< Super chlorinate hours remaining (0 = off), from ctrl_chlor_resp byte 5 / ctrl_chlor_set byte 2 low bits.
     poolstate_uint8_t        error;   ///< Raw error bits from the cell (from chlor_level_resp); see poolstate_chlor_status_typ_t.
 };
 

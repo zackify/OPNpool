@@ -50,6 +50,7 @@ opnpool_ns = cg.esphome_ns.namespace("opnpool")
 OpnPool             = opnpool_ns.class_("OpnPool", cg.Component)
 OpnPoolClimate      = opnpool_ns.class_("OpnPoolClimate", climate.Climate, cg.Component)
 OpnPoolSwitch       = opnpool_ns.class_("OpnPoolSwitch", switch.Switch, cg.Component)
+OpnPoolBoostSwitch  = opnpool_ns.class_("OpnPoolBoostSwitch", switch.Switch, cg.Component)
 OpnPoolSensor       = opnpool_ns.class_("OpnPoolSensor", sensor.Sensor, cg.Component)
 OpnPoolNumber       = opnpool_ns.class_("OpnPoolNumber", number.Number, cg.Component)
 OpnPoolBinarySensor = opnpool_ns.class_("OpnPoolBinarySensor", binary_sensor.BinarySensor, cg.Component)
@@ -102,6 +103,7 @@ CONF_ANALOG_SENSORS = { # keys are used to overwrite sensor_id_t enum in opnpool
     "chlorinator_level":  {"unit": UNIT_PERCENT, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "chlorinator_salt":   {"unit": UNIT_PARTS_PER_MILLION, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "primary_pump_error": {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
+    "chlorinator_boost_remaining": {"unit": "h", CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
     "chlorinator_error":  {"unit": UNIT_EMPTY, CONF_DEVICE_CLASS: DEVICE_CLASS_EMPTY, CONF_STATE_CLASS: STATE_CLASS_MEASUREMENT},
 }
 CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.h
@@ -118,6 +120,7 @@ CONF_BINARY_SENSORS = [  # used to overwrite binary_sensor_id_t enum in opnpool.
 ]
 CONF_NUMBERS = {  # keys are used to overwrite number_id_t enum in opnpool_ids.h
     "chlorinator_level_set": {"min": 0, "max": 100, "step": 1, "unit": UNIT_PERCENT},
+    "chlorinator_boost_hours": {"min": 1, "max": 24, "step": 1, "unit": "h"},
 }
 CONF_TEXT_SENSORS = [  # used to overwrite text_sensor_id_t enum in opnpool.h
     "pool_sched",
@@ -159,6 +162,9 @@ CONFIG_SCHEMA = cv.Schema({
             cv.Optional(CONF_CIRCUIT_PLUS_1): cv.int_range(min=1, max=16),
         }) for key in CONF_SWITCHES
     },
+    cv.Optional("chlorinator_boost", default={"name": "Chlorinator Boost"}): switch.switch_schema(OpnPoolBoostSwitch).extend({
+        cv.GenerateID(): cv.declare_id(OpnPoolBoostSwitch),
+    }),
     **{
         cv.Optional(key, default={"name": key.replace("_", " ").title()}): sensor.sensor_schema(OpnPoolSensor).extend({
             cv.GenerateID(): cv.declare_id(OpnPoolSensor),
@@ -316,6 +322,14 @@ async def to_code(config):
         if CONF_CIRCUIT_PLUS_1 in entity_cfg:
             cg.add(switch_entity.set_circuit_plus_1_override(entity_cfg[CONF_CIRCUIT_PLUS_1]))
         cg.add(getattr(var, f"set_{switch_key}_switch")(switch_entity))
+
+    # register the salt cell boost (super chlorinate) switch
+    boost_cfg = config["chlorinator_boost"]
+    if CONF_ID not in boost_cfg:
+        boost_cfg[CONF_ID] = cg.new_id()
+    boost_entity = cg.new_Pvariable(boost_cfg[CONF_ID], var)
+    await switch.register_switch(boost_entity, boost_cfg)
+    cg.add(var.set_chlorinator_boost_switch(boost_entity))
 
     # register analog sensors (constructor injection)
     for id, sensor_key in enumerate(CONF_ANALOG_SENSORS):

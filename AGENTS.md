@@ -30,7 +30,9 @@ Controller <-> cell, IC protocol (`10 02 ... 10 03`):
 - cell -> controller: dst 0x00, typ 0x12 LEVEL_RESP, 2 bytes = [salt/50, error bits]. e.g. `33 84` = 2550 ppm, 0x84.
 - cell -> controller: dst 0x00, typ 0x01 MODEL_RESP-ish, `00 00`.
 Controller bus, A5 protocol:
-- remote -> controller: src 0x20 dst 0x10 typ 0x99 (CHLOR_SET), 4 bytes `[spa byte, pool %, 00, 00]`.
+- remote -> controller: src 0x20 dst 0x10 typ 0x99 (CHLOR_SET), 4 bytes `[spa byte, pool %, boost, 00]`. `boost` = 0x00 off, `0x80 | hours` (1..24) on (verified 2026-11-21 with the remote: on=0x98 (24 h default), 10=0x8A, 2=0x82, off=0x00). While boost is on the controller tells the cell level 0x64 (100%).
+- controller readback typ 0x19: byte 5 (after the cell error byte) = boost hours remaining, 0 when off; byte 2 stays 0x81. Not yet verified: whether it counts down by itself (hourly?).
+- entities: switch "Chlorinator Boost", number "Chlorinator Boost Hours" (1..24; edits the remaining hours while on, remembers the next start hours while off), sensor "Chlorinator Boost Remaining".
   The controller acks with typ 0x01 (SET_ACK) data `99`.
 - remote -> controller: typ 0xD9 (CHLOR_REQ), 1 byte `00`; controller answers broadcast typ 0x19 (CHLOR_RESP), 22 bytes:
   `[spa byte, pool %, 0x81, salt/50, status, 00, 16-char name "Intellichlor--40"]`.
