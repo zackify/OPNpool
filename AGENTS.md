@@ -9,6 +9,11 @@ The controller: ESP32-S3 `opnpool-1`, static IP 192.168.0.233, Wi-Fi `knox`, ESP
 OTA password in `pool/secrets.yaml` of the `pool` repo. Its pool controller is a SunTouch (bus address 0x10); our
 packets go out with source 0x20 (EasyTouch address), exactly like the remote does.
 
+## Git workflow (always follow)
+- Always branch off `master` for every change (`git checkout -B zs/<feature> origin/master`) and keep working on that branch until the change is verified on the real controller (compile, flash, test with the remote/HA).
+- Once a feature is verified working, always merge it to `master` and push `master` (fast-forward when possible), and update the matching `zackify/pool` YAML on `main` if it changed. Do not leave verified work sitting on a branch.
+- Never merge or push unverified firmware changes to `master`; `master` is what is running on the pool controller.
+
 ## What this branch adds (salt cell)
 - Sensors: Chlorinator Salt (ppm), Level (%), Status (text: OK / Low flow / Low salt / Very low salt / Clean cell / Cold),
   Error Byte (debug, raw), Name.
