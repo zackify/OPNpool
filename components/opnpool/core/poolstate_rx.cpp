@@ -972,6 +972,23 @@ _ctrl_chlor_resp(cJSON * const dbg, network_ctrl_chlor_resp_t const * const msg,
              msg->pool, msg->spa, msg->flags, msg->salt * 50, msg->status, msg->boost_hours, chlor->name.value);
 }
 
+static void
+_ctrl_pump_cfg(network_ctrl_pump_cfg_t const * const msg, poolstate_pump_cfg_t * const cfg, char const * const what)
+{
+    if (!msg || !cfg) { ESP_LOGW(TAG, "null to %s", __func__); return; }
+    if (msg->pump_id != 1) { return; }  // only pump 1 is tracked
+    cfg->valid = true;
+    cfg->value = *msg;
+    char buf[8 * 12 + 1] = {0};
+    size_t pos = 0;
+    for (uint8_t ii = 0; ii < 8; ii++) {
+        if (msg->slot[ii].circuit == 0) continue;
+        uint16_t const rpm = static_cast<uint16_t>(msg->slot[ii].rpm_hi << 8 | msg->rpm_lo[ii]);
+        pos += snprintf(buf + pos, sizeof(buf) - pos, " c%u=%u", msg->slot[ii].circuit, rpm);
+    }
+    ESP_LOGD("opnpool_pump", "PUMP_CFG_%s: pump=%u type=0x%02X%s", what, msg->pump_id, msg->type, buf);
+}
+
 /// @}
 
 /// @name Main Entry Point
@@ -1106,6 +1123,14 @@ update_state(network_msg_t const * const msg, poolstate_t * const new_state)
             break;
         case network_msg_typ_t::CTRL_CHLOR_RESP:
             _ctrl_chlor_resp(dbg, &msg->u.a5.ctrl_chlor_resp, &new_state->chlor);
+            break;
+        case network_msg_typ_t::CTRL_PUMP_CFG_REQ:
+            break;
+        case network_msg_typ_t::CTRL_PUMP_CFG_RESP:
+            _ctrl_pump_cfg(&msg->u.a5.ctrl_pump_cfg, &new_state->pump_cfg, "RESP");
+            break;
+        case network_msg_typ_t::CTRL_PUMP_CFG_SET:
+            _ctrl_pump_cfg(&msg->u.a5.ctrl_pump_cfg, &new_state->pump_cfg, "SET");
             break;
         case network_msg_typ_t::CTRL_CHLOR_SET:
             _ctrl_chlor_set(dbg, &msg->u.a5.ctrl_chlor_set, &new_state->chlor);

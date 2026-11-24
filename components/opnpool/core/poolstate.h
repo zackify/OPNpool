@@ -277,6 +277,12 @@ struct poolstate_chlor_t {
 /// @brief Main structure containing all pool system state.
 /// @{
 
+/// @brief Pump 1 config as last read from (0x18) or set on (0x98) the controller: per-circuit speeds.
+struct poolstate_pump_cfg_t {
+    bool                    valid;
+    network_ctrl_pump_cfg_t value;
+};
+
 /**
  * @brief Complete pool state structure for the pool automation system.
  *
@@ -294,6 +300,7 @@ struct poolstate_chlor_t {
 struct poolstate_t {
     poolstate_system_t  system;                                          ///< System info (date, time, firmware).
     poolstate_chlor_t   chlor;                                           ///< Chlorinator status.
+    poolstate_pump_cfg_t pump_cfg;                                       ///< Pump 1 per-circuit speeds (0x18 / 0x98).
     poolstate_pump_t    pumps[enum_count<datalink_pump_id_t>()];         ///< Pump status array.
     poolstate_circuit_t circuits[enum_count<network_pool_circuit_t>()];  ///< Circuit states.
     poolstate_thermo_t  thermos[enum_count<poolstate_thermo_typ_t>()];   ///< Thermostat states.

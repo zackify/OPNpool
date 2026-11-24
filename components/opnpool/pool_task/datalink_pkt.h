@@ -99,6 +99,9 @@ enum class datalink_ctrl_typ_t : uint8_t {
     CHLOR_RESP       = 0x19,  ///< Controller: salt cell config (spa byte, pool %, salt, status, name)
     CHLOR_SET        = 0x99,  ///< Set salt cell output: [spa byte, pool %, 0, 0]
     CHLOR_REQ        = 0xD9,  ///< Request salt cell config (1 byte payload, 0x00)
+    PUMP_CFG_RESP    = 0x18,  ///< Controller: pump config (31 bytes: id, type, 8 x (circuit, rpm hi), rpm lo x 8)
+    PUMP_CFG_SET     = 0x98,  ///< Set pump config (same 31-byte layout as PUMP_CFG_RESP), as sent by the remote
+    PUMP_CFG_REQ     = 0xD8,  ///< Request pump config (1 byte payload: pump id, 1 = pump 1)
     VERSION_RESP     = 0xFC,
     VERSION_REQ      = 0xFD
     // SPA_CTRL_REQ     = 0xD6,

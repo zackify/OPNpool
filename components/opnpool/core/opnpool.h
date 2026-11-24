@@ -47,6 +47,7 @@ class OpnPoolBinarySensor;
 class OpnPoolNumber;
 class OpnPoolBoostSwitch;
 class OpnPoolTextSensor;
+class OpnPoolPumpSpeedNumber;
 
 /// @brief RS-485 GPIO pin configuration.
 struct rs485_pins_t {
@@ -101,6 +102,7 @@ class OpnPool : public Component {
     void set_chlorinator_boost_remaining_sensor(OpnPoolSensor * const s);
     void set_chlorinator_boost_hours_number(OpnPoolNumber * const n);
     void set_chlorinator_boost_switch(OpnPoolBoostSwitch * const s);
+    void add_pump_speed_number(OpnPoolPumpSpeedNumber * const n) { if (n_pump_speed_numbers_ < 8) pump_speed_numbers_[n_pump_speed_numbers_++] = n; }
     uint8_t get_boost_pending_hours() const { return boost_pending_hours_; }  ///< Hours used the next time boost is switched on.
     void    set_boost_pending_hours(uint8_t const h) { boost_pending_hours_ = h; }
     void set_chlorinator_level_set_number(OpnPoolNumber * const n);
@@ -171,7 +173,9 @@ class OpnPool : public Component {
     OpnPoolBinarySensor * binary_sensors_[enum_count<binary_sensor_id_t>()]{nullptr}; ///< Binary sensor pointers.
     OpnPoolBoostSwitch * boost_switch_{nullptr};   ///< Super chlorinate switch.
     uint8_t boost_pending_hours_{24};              ///< Hours to start boost with when switched on while off.
-    OpnPoolNumber * numbers_[enum_count<number_id_t>()]{nullptr};                 ///< Number entity pointers.
+    OpnPoolNumber * numbers_[enum_count<number_id_t>()]{nullptr};
+    OpnPoolPumpSpeedNumber * pump_speed_numbers_[8]{nullptr};  ///< Per-circuit pump 1 speed numbers.
+    uint8_t n_pump_speed_numbers_{0};                 ///< Number entity pointers.
     OpnPoolTextSensor * text_sensors_[enum_count<text_sensor_id_t>()]{nullptr};   ///< Text sensor pointers.
 
 #ifdef USE_MATTER

@@ -48,6 +48,7 @@
 #include "entities/opnpool_sensor.h"
 #include "entities/opnpool_binary_sensor.h"
 #include "entities/opnpool_number.h"
+#include "entities/opnpool_pump_speed_number.h"
 #include "entities/opnpool_boost_switch.h"
 #include "entities/opnpool_text_sensor.h"
 #include "opnpool_ids.h"
@@ -671,6 +672,20 @@ OpnPool::update_numbers(poolstate_t const * const state)
     OpnPoolNumber * const level = this->numbers_[enum_index(number_id_t::CHLORINATOR_LEVEL_SET)];
     if (level != nullptr && state->chlor.setpt_pool.valid) {
         level->publish_value_if_changed(static_cast<float>(state->chlor.setpt_pool.value));
+    }
+
+    // pump 1 per-circuit speeds (from the controller's pump config readback, or a SET we or the remote sent)
+    if (state->pump_cfg.valid) {
+        network_ctrl_pump_cfg_t const & cfg = state->pump_cfg.value;
+        for (uint8_t nn = 0; nn < n_pump_speed_numbers_; nn++) {
+            OpnPoolPumpSpeedNumber * const num = pump_speed_numbers_[nn];
+            for (uint8_t ii = 0; ii < 8; ii++) {
+                if (cfg.slot[ii].circuit == num->get_circuit()) {
+                    num->publish_rpm_if_changed(static_cast<uint16_t>(cfg.slot[ii].rpm_hi << 8 | cfg.rpm_lo[ii]));
+                    break;
+                }
+            }
+        }
     }
 
     // boost: the hours number shows the hours remaining while boost is on, otherwise the hours the next boost will start with

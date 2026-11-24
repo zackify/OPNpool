@@ -181,6 +181,9 @@ _queue_req(rs485_handle_t const rs485, network_msg_typ_t const typ)
     msg.typ = typ;
     msg.src = datalink_addr_t::remote();               // pretent we're a remote control
     msg.dst = _controller_addr;  // use controller address
+    if (typ == network_msg_typ_t::CTRL_PUMP_CFG_REQ) {
+        msg.u.a5.ctrl_pump_cfg_req.pump_id = 1;  // pump 1
+    }
 
     datalink_pkt_t * const pkt = static_cast<datalink_pkt_t*>(calloc(1, sizeof(datalink_pkt_t)));
 
@@ -279,6 +282,7 @@ pool_req_task(void * rs485_void)
         _queue_req(rs485, network_msg_typ_t::CTRL_HEAT_REQ);
         _queue_req(rs485, network_msg_typ_t::CTRL_SCHED_REQ);
         _queue_req(rs485, network_msg_typ_t::CTRL_CHLOR_REQ);  // salt cell setpoint + name (readback of what the remote/we set)
+        _queue_req(rs485, network_msg_typ_t::CTRL_PUMP_CFG_REQ);  // pump 1 per-circuit speeds
     }
 }
 

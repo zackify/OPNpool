@@ -278,6 +278,26 @@ struct network_ctrl_chlor_req_t {
     uint8_t unknown;     // 0x00
 } PACK8;
 
+/// @brief Pump config request (action 0xD8): which pump.
+struct network_ctrl_pump_cfg_req_t {
+    uint8_t pump_id;     // 1 = pump 1
+} PACK8;
+
+/// @brief Pump config (action 0x18 response, 0x98 set), 31 bytes, captured on a SunTouch with a VS pump.
+/// rpm of slot i = (slot[i].rpm_hi << 8) | rpm_lo[i]; circuit 0 = unused slot.
+struct network_ctrl_pump_cfg_t {
+    uint8_t pump_id;     // 1 = pump 1
+    uint8_t type;        // 0x80 = VS
+    uint8_t unknown[3];  // 00 02 00 observed (priming settings?)
+    struct {
+        uint8_t circuit; // Pentair circuit number (1 = spa, 6 = pool, 11.. = features), 0 = unused
+        uint8_t rpm_hi;
+    } slot[8];
+    uint8_t prime_rpm_hi;  // priming speed, high byte (0x03E8 = 1000 observed)
+    uint8_t rpm_lo[8];
+    uint8_t prime_rpm_lo;  // priming speed, low byte
+} PACK8;
+
 /// @brief Controller's salt cell config response (action 0x19, 22 bytes).
 struct network_ctrl_chlor_resp_t {
     uint8_t spa;         // spa setpoint byte
@@ -542,6 +562,9 @@ union network_data_a5_t {
     network_ctrl_chlor_set_t       ctrl_chlor_set;
     network_ctrl_chlor_req_t       ctrl_chlor_req;
     network_ctrl_chlor_resp_t      ctrl_chlor_resp;
+    network_ctrl_pump_cfg_req_t    ctrl_pump_cfg_req;
+    network_ctrl_pump_cfg_t        ctrl_pump_cfg;     // resp or set
+    uint8_t                        max_raw[64];       // sizes the rx buffer for long packets (e.g. pump config 0x18/0x98)
 } PACK8;
 
 union network_data_ic_t {
@@ -627,6 +650,9 @@ union network_data_t {
     X(CTRL_CHLOR_REQ,        sizeof(network_ctrl_chlor_req_t),      false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_REQ)     \
     X(CTRL_CHLOR_RESP,       sizeof(network_ctrl_chlor_resp_t),     false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_RESP)    \
     X(CTRL_CHLOR_SET,        sizeof(network_ctrl_chlor_set_t),      false, A5_CTRL, datalink_ctrl_typ_t::CHLOR_SET)     \
+    X(CTRL_PUMP_CFG_REQ,     sizeof(network_ctrl_pump_cfg_req_t),   false, A5_CTRL, datalink_ctrl_typ_t::PUMP_CFG_REQ)  \
+    X(CTRL_PUMP_CFG_RESP,    sizeof(network_ctrl_pump_cfg_t),       false, A5_CTRL, datalink_ctrl_typ_t::PUMP_CFG_RESP) \
+    X(CTRL_PUMP_CFG_SET,     sizeof(network_ctrl_pump_cfg_t),       false, A5_CTRL, datalink_ctrl_typ_t::PUMP_CFG_SET)  \
     X(CHLOR_CONTROL_REQ,     sizeof(network_chlor_control_req_t),   false, IC,      datalink_chlor_typ_t::CONTROL_REQ)  \
     X(CHLOR_CONTROL_RESP,    sizeof(network_chlor_control_resp_t),  false, IC,      datalink_chlor_typ_t::CONTROL_RESP) \
     X(CHLOR_MODEL_REQ,       sizeof(network_chlor_model_req_t),     false, IC,      datalink_chlor_typ_t::MODEL_REQ)    \
@@ -773,6 +799,7 @@ struct network_msg_t {
     // sanity checks
 static_assert(sizeof(uint8_heat_status_t) == 1, "uint8_heat_status_t must be 1 byte");
 static_assert(sizeof(uint8_heat_src_t)    == 1, "uint8_heat_src_t must be 1 byte");
+static_assert(sizeof(network_ctrl_pump_cfg_t) == 31, "pump config is 31 bytes on the wire");
 static_assert(sizeof(network_data_t)      <= UINT8_MAX, "network_data_t size exceeds UINT8_MAX");
 static_assert(std::size(network_msg_typ_info) == enum_count<network_msg_typ_t>());
 static_assert(network_msg_typ_get_info(datalink_pump_typ_t::STATUS, true)  == &network_msg_typ_info[enum_index(network_msg_typ_t::PUMP_STATUS_REQ)]);

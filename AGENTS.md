@@ -46,6 +46,18 @@ Controller bus, A5 protocol:
   the controller reported, so only the pool % changes.
 - Safety: the number refuses to send until a CHLOR_RESP readback has been seen (a CHLOR_REQ is sent periodically).
 
+## Pump speed per circuit (verified 2026-11-24, Moov AI VS pump at pump address 0x60)
+- remote -> controller: typ 0xD8 (PUMP_CFG_REQ) `[01]` (pump 1); controller answers broadcast typ 0x18 (PUMP_CFG_RESP).
+- remote -> controller: typ 0x98 (PUMP_CFG_SET), same 31 bytes as 0x18; controller acks typ 0x01 `[98]`.
+- Layout: `[pump id, type 0x80=VS, 00 02 00, 8 x (circuit, rpm hi), prime rpm hi, 8 x rpm lo, prime rpm lo]`,
+  e.g. `01 80 00 02 00 | 06 03 0C 05 0B 05 01 09 0D 0A 00 03 00 03 00 03 | 03 | E8 DC DC C4 8C E8 E8 E8 | E8`
+  = circuit 6: 1000, 12: 1500, 11: 1500, 1: 2500, 13: 2700, priming 1000 RPM. Circuit 0 = unused slot.
+- Packets this long used to be dropped by the rx length check; `network_data_a5_t` has a 64-byte `max_raw` member for that.
+- Entities: YAML `pump_speeds:` list of `{circuit, name}` -> number 30..120 % (pump's own scale, 5 % steps), sent as
+  1000..3450 RPM linear (`entities/opnpool_pump_speed_number.cpp`). The SET reuses the last 0x18 readback and only
+  changes that circuit's slot; it refuses until a readback has been seen, and if the circuit isn't assigned to the pump.
+  0xD8 is requested every 30 s with the other periodic requests.
+
 ## Build (no secrets in git)
 Build in a scratch dir that has a copy of the YAML, the secrets, and a symlink to this repo:
 ```bash

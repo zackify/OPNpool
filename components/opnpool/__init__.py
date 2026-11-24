@@ -55,6 +55,7 @@ OpnPoolSensor       = opnpool_ns.class_("OpnPoolSensor", sensor.Sensor, cg.Compo
 OpnPoolNumber       = opnpool_ns.class_("OpnPoolNumber", number.Number, cg.Component)
 OpnPoolBinarySensor = opnpool_ns.class_("OpnPoolBinarySensor", binary_sensor.BinarySensor, cg.Component)
 OpnPoolTextSensor   = opnpool_ns.class_("OpnPoolTextSensor", text_sensor.TextSensor, cg.Component)
+OpnPoolPumpSpeedNumber = opnpool_ns.class_("OpnPoolPumpSpeedNumber", number.Number, cg.Component)
 
 CONF_RS485         = "rs485"
 CONF_RS485_RX_PIN  = "rx_pin"
@@ -62,6 +63,8 @@ CONF_RS485_TX_PIN  = "tx_pin"
 CONF_RS485_RTS_PIN = "rts_pin"
 CONF_RS485_A5_VERSION = "a5_version"
 CONF_CIRCUIT_PLUS_1 = "circuit_plus_1"
+CONF_PUMP_SPEEDS    = "pump_speeds"
+CONF_CIRCUIT        = "circuit"
 
 # Matter over Thread configuration
 CONF_MATTER               = "matter"
@@ -162,6 +165,12 @@ CONFIG_SCHEMA = cv.Schema({
             cv.Optional(CONF_CIRCUIT_PLUS_1): cv.int_range(min=1, max=16),
         }) for key in CONF_SWITCHES
     },
+    # pump 1 speed per Pentair circuit (number of the circuit as the controller's pump config uses it: 1 = spa, 6 = pool, 11.. = features)
+    cv.Optional(CONF_PUMP_SPEEDS, default=[]): cv.All(cv.ensure_list(
+        number.number_schema(OpnPoolPumpSpeedNumber, unit_of_measurement=UNIT_PERCENT).extend({
+            cv.GenerateID(): cv.declare_id(OpnPoolPumpSpeedNumber),
+            cv.Required(CONF_CIRCUIT): cv.int_range(min=1, max=20),
+        })), cv.Length(max=8)),
     cv.Optional("chlorinator_boost", default={"name": "Chlorinator Boost"}): switch.switch_schema(OpnPoolBoostSwitch).extend({
         cv.GenerateID(): cv.declare_id(OpnPoolBoostSwitch),
     }),
@@ -352,6 +361,13 @@ async def to_code(config):
             min_value=limits["min"], max_value=limits["max"], step=limits["step"],
         )
         cg.add(getattr(var, f"set_{number_key}_number")(number_entity))
+
+    # register per-circuit pump speed numbers (30..120 % in 5 % steps, sent as 1000..3450 RPM)
+    for entity_cfg in config[CONF_PUMP_SPEEDS]:
+        ps_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, entity_cfg[CONF_CIRCUIT])
+        await cg.register_component(ps_entity, entity_cfg)
+        await number.register_number(ps_entity, entity_cfg, min_value=30, max_value=120, step=5)
+        cg.add(var.add_pump_speed_number(ps_entity))
 
     # register binary sensors (constructor injection)
     for id, binary_sensor_key in enumerate(CONF_BINARY_SENSORS):
