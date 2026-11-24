@@ -53,7 +53,7 @@ Controller bus, A5 protocol:
   e.g. `01 80 00 02 00 | 06 03 0C 05 0B 05 01 09 0D 0A 00 03 00 03 00 03 | 03 | E8 DC DC C4 8C E8 E8 E8 | E8`
   = circuit 6: 1000, 12: 1500, 11: 1500, 1: 2500, 13: 2700, priming 1000 RPM. Circuit 0 = unused slot.
 - Packets this long used to be dropped by the rx length check; `network_data_a5_t` has a 64-byte `max_raw` member for that.
-- Entities: YAML `pump_speeds:` list of `{circuit, name}` -> number 30..120 % (pump's own scale, 5 % steps), sent as
+- Entities: YAML `pump_speeds:` list of `{circuit, name}` -> number 10..100 % (5 % steps), sent as
   1000..3450 RPM linear (`entities/opnpool_pump_speed_number.cpp`). The SET reuses the last 0x18 readback and only
   changes that circuit's slot; it refuses until a readback has been seen, and if the circuit isn't assigned to the pump.
   0xD8 is requested every 30 s with the other periodic requests.

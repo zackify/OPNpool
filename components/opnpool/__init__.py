@@ -362,11 +362,11 @@ async def to_code(config):
         )
         cg.add(getattr(var, f"set_{number_key}_number")(number_entity))
 
-    # register per-circuit pump speed numbers (30..120 % in 5 % steps, sent as 1000..3450 RPM)
+    # register per-circuit pump speed numbers (10..100 % in 5 % steps, sent as 1000..3450 RPM)
     for entity_cfg in config[CONF_PUMP_SPEEDS]:
         ps_entity = cg.new_Pvariable(entity_cfg[CONF_ID], var, entity_cfg[CONF_CIRCUIT])
         await cg.register_component(ps_entity, entity_cfg)
-        await number.register_number(ps_entity, entity_cfg, min_value=30, max_value=120, step=5)
+        await number.register_number(ps_entity, entity_cfg, min_value=10, max_value=100, step=5)
         cg.add(var.add_pump_speed_number(ps_entity))
 
     # register binary sensors (constructor injection)
